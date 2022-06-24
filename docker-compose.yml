@@ -1,0 +1,26 @@
+version: '3'
+
+services:
+  postgres:
+    image: postgres:13
+    ports:
+      - 5434:5432
+    environment:
+      POSTGRES_USER: db_user
+      POSTGRES_PASSWORD: db_user
+      POSTGRES_DB: db
+    volumes:
+      - example-service-postgres-db-volume:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "db_user"]
+      interval: 5s
+      retries: 5
+    restart: always
+
+  api:
+    build: service_api/.
+    ports:
+      - 8080:8080
+
+volumes:
+  example-service-postgres-db-volume:

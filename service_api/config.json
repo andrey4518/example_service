@@ -1,0 +1,5 @@
+{
+    "common": {
+        "pg_connection_string": "postgresql://db_user:db_user@postgres:5432/db"
+    }
+}
