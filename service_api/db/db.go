@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strconv"
 
+	pq "github.com/lib/pq"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 	"gorm.io/driver/postgres"
@@ -11,13 +12,20 @@ import (
 )
 
 type Movie struct {
-	ID   uint   `gorm:"primaryKey" swaggerignore:"true"`
-	Name string `form:"name" json:"name" xml:"name"  binding:"required"`
+	ID      uint           `gorm:"primaryKey" swaggerignore:"true"`
+	Name    string         `form:"name" json:"name" xml:"name" binding:"required"`
+	Imdb_Id uint           `form:"imdb_id" json:"imdb_id" xml:"imdb_id" binding:"required"`
+	Tmdb_Id uint           `form:"tmdb_id" json:"tmdb_id" xml:"tmdb_id" binding:"required"`
+	Genres  pq.StringArray `gorm:"type:varchar(64)[]" form:"genres" json:"genres" xml:"genres" binding:"required" swaggertype:"array,string"`
 }
 
 type User struct {
-	ID   uint   `gorm:"primaryKey" swaggerignore:"true"`
-	Name string `form:"name" json:"name" xml:"name"  binding:"required"`
+	ID       uint   `gorm:"primaryKey" swaggerignore:"true"`
+	Username string `form:"username" json:"username" xml:"username"  binding:"required"`
+	Name     string `form:"name" json:"name" xml:"name"  binding:"required"`
+	Sex      string `form:"sex" json:"sex" xml:"sex"  binding:"required"`
+	Address  string `form:"address" json:"address" xml:"address"  binding:"required"`
+	EMail    string `form:"email" json:"email" xml:"email"  binding:"required"`
 }
 
 var _db *gorm.DB

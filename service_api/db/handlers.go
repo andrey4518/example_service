@@ -283,7 +283,7 @@ func AddMovieHandler(g *gin.Context) {
 		return
 	}
 
-	g.JSON(http.StatusOK, gin.H{"status": "movie is created"})
+	g.JSON(http.StatusOK, gin.H{"status": "movie is created", "movie": json})
 }
 
 // Query movie
