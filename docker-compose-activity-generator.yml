@@ -1,0 +1,13 @@
+version: '3'
+
+services:
+  app:
+    build: activity_generator_service/.
+    ports:
+      - 8081:8000
+    restart: always
+
+networks: 
+  default: 
+    external: 
+      name: awesome_service_network
