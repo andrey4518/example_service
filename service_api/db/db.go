@@ -12,7 +12,7 @@ import (
 )
 
 type Movie struct {
-	ID      uint           `gorm:"primaryKey" swaggerignore:"true"`
+	ID      uint           `gorm:"primaryKey" json:"id" xml:"id" swaggerignore:"true"`
 	Name    string         `form:"name" json:"name" xml:"name" binding:"required"`
 	Imdb_Id uint           `form:"imdb_id" json:"imdb_id" xml:"imdb_id" binding:"required"`
 	Tmdb_Id uint           `form:"tmdb_id" json:"tmdb_id" xml:"tmdb_id" binding:"required"`
@@ -20,7 +20,7 @@ type Movie struct {
 }
 
 type User struct {
-	ID       uint   `gorm:"primaryKey" swaggerignore:"true"`
+	ID       uint   `gorm:"primaryKey" json:"id" xml:"id" swaggerignore:"true"`
 	Username string `form:"username" json:"username" xml:"username"  binding:"required"`
 	Name     string `form:"name" json:"name" xml:"name"  binding:"required"`
 	Sex      string `form:"sex" json:"sex" xml:"sex"  binding:"required"`
