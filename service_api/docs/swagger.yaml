@@ -1,0 +1,284 @@
+basePath: /api/v1
+definitions:
+  db.Movie:
+    properties:
+      name:
+        type: string
+    required:
+    - name
+    type: object
+  db.User:
+    properties:
+      name:
+        type: string
+    required:
+    - name
+    type: object
+host: localhost:8080
+info:
+  contact:
+    email: support@swagger.io
+    name: API Support
+    url: http://www.swagger.io/support
+  description: This is a sample server celler server.
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+  termsOfService: http://swagger.io/terms/
+  title: Swagger Example API
+  version: "1.0"
+paths:
+  /db/init_db:
+    post:
+      consumes:
+      - application/json
+      description: initializes database
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ""
+        "500":
+          description: ""
+      summary: Initialize database
+      tags:
+      - db
+  /db/init_db_data:
+    post:
+      consumes:
+      - application/json
+      description: Initialize test data
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ""
+        "500":
+          description: ""
+      summary: Initialize test data
+      tags:
+      - db
+  /movies:
+    get:
+      consumes:
+      - application/json
+      description: Get list of all movies
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ""
+        "500":
+          description: ""
+      summary: Get movies
+      tags:
+      - movies
+    post:
+      consumes:
+      - application/json
+      description: Creates movie in database
+      parameters:
+      - description: movie info
+        in: body
+        name: movie
+        required: true
+        schema:
+          $ref: '#/definitions/db.Movie'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ""
+        "400":
+          description: ""
+        "500":
+          description: ""
+      summary: Add movie
+      tags:
+      - movies
+  /movies/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Delete movie by id
+      parameters:
+      - description: movie id
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ""
+        "400":
+          description: ""
+        "500":
+          description: ""
+      summary: Delete movie
+      tags:
+      - movies
+    get:
+      consumes:
+      - application/json
+      description: Shows movie by id
+      parameters:
+      - description: movie id
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ""
+        "400":
+          description: ""
+        "500":
+          description: ""
+      summary: Query movie
+      tags:
+      - movies
+    patch:
+      consumes:
+      - application/json
+      description: Updates movie info specified by id
+      parameters:
+      - description: movie info
+        in: body
+        name: user
+        required: true
+        schema:
+          $ref: '#/definitions/db.Movie'
+      - description: movie id
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ""
+        "400":
+          description: ""
+        "500":
+          description: ""
+      summary: Update movie
+      tags:
+      - movies
+  /users:
+    get:
+      consumes:
+      - application/json
+      description: Get list of all users
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ""
+        "500":
+          description: ""
+      summary: Get Users
+      tags:
+      - users
+    post:
+      consumes:
+      - application/json
+      description: Creates user in database
+      parameters:
+      - description: user info
+        in: body
+        name: user
+        required: true
+        schema:
+          $ref: '#/definitions/db.User'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ""
+        "500":
+          description: ""
+      summary: Add user
+      tags:
+      - users
+  /users/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Delete user by id
+      parameters:
+      - description: user id
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ""
+        "400":
+          description: ""
+        "500":
+          description: ""
+      summary: Delete user
+      tags:
+      - users
+    get:
+      consumes:
+      - application/json
+      description: Shows user by id
+      parameters:
+      - description: user id
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ""
+        "400":
+          description: ""
+        "500":
+          description: ""
+      summary: Query user
+      tags:
+      - users
+    patch:
+      consumes:
+      - application/json
+      description: Updates user info specified by id
+      parameters:
+      - description: user info
+        in: body
+        name: user
+        required: true
+        schema:
+          $ref: '#/definitions/db.User'
+      - description: user id
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ""
+        "400":
+          description: ""
+        "500":
+          description: ""
+      summary: Update user
+      tags:
+      - users
+securityDefinitions:
+  BasicAuth:
+    type: basic
+swagger: "2.0"
