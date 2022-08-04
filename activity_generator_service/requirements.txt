@@ -1,0 +1,12 @@
+fastapi
+uvicorn
+apscheduler
+SQLAlchemy
+Faker
+requests
+async_lru
+aiohttp[speedups]
+pandas
+sqlalchemy[asyncio]
+tqdm
+aiosqlite
