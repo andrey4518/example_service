@@ -94,6 +94,48 @@ async def start_user_generating_activity(interval: int=5, endpoint: str='http://
     }
 
 
-@router.get('/get_exported_movies')
-async def get_exported_movies():
-    return await q.get_exported_movies()
+@router.get('/get_exported')
+async def get_exported():
+    return {
+        'movies': await q.get_exported_movies(),
+        'users': await q.get_exported_users(),
+        'ratings': await q.get_exported_ratings()
+    }
+
+
+@router.get('/generate_rating_ready_to_export')
+async def generate_rating_ready_to_export():
+    return await q.get_rating_ready_to_export()
+
+
+@router.get('/get_ratings_ready_to_export')
+async def get_ratings_ready_to_export():
+    return await q.get_all_ratings_ready_to_export()
+
+
+async def rating_generating_job(endpoint):
+    rating = await generate_rating_ready_to_export()
+    if not rating:
+        return
+    rating_id = rating.pop('id')
+    rating.pop('exported')
+    async with aiohttp.ClientSession() as session:
+        async with session.post(endpoint, data=json.dumps(rating)) as r:
+            logger.info((
+                f'Request to "{r.url}" with payload "{rating}" finished '
+                f'with code {r.status} and response "{await r.text()}"'
+            ))
+            json_data = await r.json()
+            id = json_data.get('rating', {}).get('id')
+            if id:
+                await q.set_rating_exported(rating_id)
+
+
+@router.get('/start_rating_generating_activity',response_model=JobCreateDeleteResponse,tags=["generating"])
+async def start_user_generating_activity(interval: int=5, endpoint: str='http://example_service_api_1:8080/api/v1/ratings'):
+    scheduler = await get_scheduler()
+    job = scheduler.add_job(rating_generating_job, 'interval', seconds=interval, args=[endpoint])
+    return {
+        "scheduled":True,
+        "job_id":job.id
+    }
