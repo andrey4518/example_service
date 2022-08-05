@@ -409,6 +409,188 @@ func DeleteMovieHandler(g *gin.Context) {
 	g.JSON(http.StatusOK, gin.H{"status": "movie is deleted"})
 }
 
+// Get ratings
+// @Summary Get ratings
+// @Description Get list of all ratings
+// @Tags ratings
+// @Accept json
+// @Produce json
+// @Success 200
+// @Failure 500
+// @Router /ratings [get]
+func ListRatingsHandler(g *gin.Context) {
+	ratings, err := listRatings()
+
+	if err != nil {
+		log.Error(err)
+		g.JSON(http.StatusInternalServerError, gin.H{"error": err})
+		return
+	}
+
+	g.JSON(http.StatusOK, gin.H{"ratings": ratings})
+}
+
+// Add rating
+// @Summary Add rating
+// @Description Creates rating in database
+// @Tags ratings
+// @Accept json
+// @Produce json
+// @Param rating body db.Rating true "rating info"
+// @Success 200
+// @Failure 400
+// @Failure 500
+// @Router /ratings [post]
+func AddRatingHandler(g *gin.Context) {
+	var json Rating
+
+	if err := g.ShouldBindJSON(&json); err != nil {
+		g.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	err := addRating(&json)
+	if err != nil {
+		switch {
+		case errors.As(err, &intErr):
+			log.Error(err)
+			g.JSON(http.StatusInternalServerError, gin.H{"error": err})
+		case errors.As(err, &qCondErr):
+			log.Error(err)
+			g.JSON(http.StatusBadRequest, gin.H{"error": err})
+		default:
+			log.Error(err)
+			g.JSON(http.StatusInternalServerError, gin.H{"error": err})
+		}
+		return
+	}
+
+	g.JSON(http.StatusOK, gin.H{"status": "rating is created", "rating": json})
+}
+
+// Query rating
+// @Summary Query rating
+// @Description Shows rating by id
+// @Tags ratings
+// @Accept json
+// @Produce json
+// @Param id path integer true "rating id"
+// @Success 200
+// @Failure 400
+// @Failure 500
+// @Router /ratings/{id} [get]
+func QueryRatingHandler(g *gin.Context) {
+	id, err := strconv.Atoi(g.Param("id"))
+
+	if err != nil {
+		g.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	rating, err := queryRating(id)
+
+	if err != nil {
+		switch {
+		case errors.As(err, &intErr):
+			log.Error(err)
+			g.JSON(http.StatusInternalServerError, gin.H{"error": err})
+		case errors.As(err, &qCondErr):
+			log.Error(err)
+			g.JSON(http.StatusBadRequest, gin.H{"error": err})
+		default:
+			log.Error(err)
+			g.JSON(http.StatusInternalServerError, gin.H{"error": err})
+		}
+		return
+	}
+
+	g.JSON(http.StatusOK, gin.H{"rating": rating})
+}
+
+// Update rating
+// @Summary Update rating
+// @Description Updates rating info specified by id
+// @Tags ratings
+// @Accept json
+// @Produce json
+// @Param user body db.Rating true "rating info"
+// @Param id path integer true "rating id"
+// @Success 200
+// @Failure 400
+// @Failure 500
+// @Router /ratings/{id} [patch]
+func UpdateRatingHandler(g *gin.Context) {
+	id, err := strconv.Atoi(g.Param("id"))
+	if err != nil {
+		g.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	var json Rating
+
+	if err := g.ShouldBindJSON(&json); err != nil {
+		g.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	err = updateRating(id, &json)
+
+	if err != nil {
+		switch {
+		case errors.As(err, &intErr):
+			log.Error(err)
+			g.JSON(http.StatusInternalServerError, gin.H{"error": err})
+		case errors.As(err, &qCondErr):
+			log.Error(err)
+			g.JSON(http.StatusBadRequest, gin.H{"error": err})
+		default:
+			log.Error(err)
+			g.JSON(http.StatusInternalServerError, gin.H{"error": err})
+		}
+		return
+	}
+
+	g.JSON(http.StatusOK, gin.H{"status": "sucess"})
+}
+
+// Delete rating
+// @Summary Delete rating
+// @Description Delete rating by id
+// @Tags ratings
+// @Accept json
+// @Produce json
+// @Param id path integer true "rating id"
+// @Success 200
+// @Failure 400
+// @Failure 500
+// @Router /ratings/{id} [delete]
+func DeleteRatingHandler(g *gin.Context) {
+	id, err := strconv.Atoi(g.Param("id"))
+	if err != nil {
+		g.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	err = deleteRating(id)
+
+	if err != nil {
+		switch {
+		case errors.As(err, &intErr):
+			log.Error(err)
+			g.JSON(http.StatusInternalServerError, gin.H{"error": err})
+		case errors.As(err, &qCondErr):
+			log.Error(err)
+			g.JSON(http.StatusBadRequest, gin.H{"error": err})
+		default:
+			log.Error(err)
+			g.JSON(http.StatusInternalServerError, gin.H{"error": err})
+		}
+		return
+	}
+
+	g.JSON(http.StatusOK, gin.H{"status": "rating is deleted"})
+}
+
 func AddApiRoutes(g *gin.RouterGroup) {
 	g.POST("/db/init_db", InitHandler)
 	g.POST("/db/init_db_data", InitTestDataHandler)
@@ -424,4 +606,10 @@ func AddApiRoutes(g *gin.RouterGroup) {
 	g.POST("/movies", AddMovieHandler)
 	g.PATCH("/movies/:id", UpdateMovieHandler)
 	g.DELETE("/movies/:id", DeleteMovieHandler)
+	//ratings
+	g.GET("/ratings", ListRatingsHandler)
+	g.GET("/ratings/:id", QueryRatingHandler)
+	g.POST("/ratings", AddRatingHandler)
+	g.PATCH("/ratings/:id", UpdateRatingHandler)
+	g.DELETE("/ratings/:id", DeleteRatingHandler)
 }
