@@ -2,6 +2,7 @@ package db
 
 import (
 	"errors"
+	notifier "example/service/api/notifier"
 	"net/http"
 	"strconv"
 
@@ -102,6 +103,8 @@ func AddUserHandler(g *gin.Context) {
 		}
 		return
 	}
+
+	notifier.ObjectCreationNotificationChannel <- json
 
 	g.JSON(http.StatusOK, gin.H{"status": "success", "user": json})
 }
@@ -282,6 +285,8 @@ func AddMovieHandler(g *gin.Context) {
 		}
 		return
 	}
+
+	notifier.ObjectCreationNotificationChannel <- json
 
 	g.JSON(http.StatusOK, gin.H{"status": "movie is created", "movie": json})
 }
@@ -465,6 +470,8 @@ func AddRatingHandler(g *gin.Context) {
 		return
 	}
 
+	notifier.ObjectCreationNotificationChannel <- json
+
 	g.JSON(http.StatusOK, gin.H{"status": "rating is created", "rating": json})
 }
 
@@ -591,6 +598,190 @@ func DeleteRatingHandler(g *gin.Context) {
 	g.JSON(http.StatusOK, gin.H{"status": "rating is deleted"})
 }
 
+// Get movie imdb infos
+// @Summary Get movie imdb infos
+// @Description Get list of all movie imdb infos
+// @Tags movie_imdb_info
+// @Accept json
+// @Produce json
+// @Success 200
+// @Failure 500
+// @Router /movie_imdb_info [get]
+func ListMovieImdbInfoHandler(g *gin.Context) {
+	infos, err := listMovieImdbInfo()
+
+	if err != nil {
+		log.Error(err)
+		g.JSON(http.StatusInternalServerError, gin.H{"error": err})
+		return
+	}
+
+	g.JSON(http.StatusOK, gin.H{"movie_imdb_infos": infos})
+}
+
+// Add movie_imdb_info
+// @Summary Add movie_imdb_info
+// @Description Creates movie_imdb_info in database
+// @Tags movie_imdb_info
+// @Accept json
+// @Produce json
+// @Param movie_imdb_info body db.MovieImdbInfo true "movie_imdb_info"
+// @Success 200
+// @Failure 400
+// @Failure 500
+// @Router /movie_imdb_info [post]
+func AddMovieImdbInfoHandler(g *gin.Context) {
+	var json MovieImdbInfo
+
+	if err := g.ShouldBindJSON(&json); err != nil {
+		g.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	err := addMovieImdbInfo(&json)
+	if err != nil {
+		switch {
+		case errors.As(err, &intErr):
+			log.Error(err)
+			g.JSON(http.StatusInternalServerError, gin.H{"error": err})
+		case errors.As(err, &qCondErr):
+			log.Error(err)
+			g.JSON(http.StatusBadRequest, gin.H{"error": err})
+		default:
+			log.Error(err)
+			g.JSON(http.StatusInternalServerError, gin.H{"error": err})
+		}
+		return
+	}
+
+	notifier.ObjectCreationNotificationChannel <- json
+
+	g.JSON(http.StatusOK, gin.H{"status": "movie_imdb_info is created", "movie_imdb_info": json})
+}
+
+// Query movie_imdb_info
+// @Summary Query movie_imdb_info
+// @Description Shows movie_imdb_info by id
+// @Tags movie_imdb_info
+// @Accept json
+// @Produce json
+// @Param id path integer true "movie_imdb_info id"
+// @Success 200
+// @Failure 400
+// @Failure 500
+// @Router /movie_imdb_info/{id} [get]
+func QueryMovieImdbInfoHandler(g *gin.Context) {
+	id, err := strconv.Atoi(g.Param("id"))
+
+	if err != nil {
+		g.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	rating, err := queryMovieImdbInfo(id)
+
+	if err != nil {
+		switch {
+		case errors.As(err, &intErr):
+			log.Error(err)
+			g.JSON(http.StatusInternalServerError, gin.H{"error": err})
+		case errors.As(err, &qCondErr):
+			log.Error(err)
+			g.JSON(http.StatusBadRequest, gin.H{"error": err})
+		default:
+			log.Error(err)
+			g.JSON(http.StatusInternalServerError, gin.H{"error": err})
+		}
+		return
+	}
+
+	g.JSON(http.StatusOK, gin.H{"movie_imdb_info": rating})
+}
+
+// Update movie_imdb_info
+// @Summary Update movie_imdb_info
+// @Description Updates movie_imdb_info specified by id
+// @Tags movie_imdb_info
+// @Accept json
+// @Produce json
+// @Param user body db.MovieImdbInfo true "movie_imdb_info"
+// @Param id path integer true "movie_imdb_info id"
+// @Success 200
+// @Failure 400
+// @Failure 500
+// @Router /movie_imdb_info/{id} [patch]
+func UpdateMovieImdbInfoHandler(g *gin.Context) {
+	id, err := strconv.Atoi(g.Param("id"))
+	if err != nil {
+		g.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	var json MovieImdbInfo
+
+	if err := g.ShouldBindJSON(&json); err != nil {
+		g.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	err = updateMovieImdbInfo(id, &json)
+
+	if err != nil {
+		switch {
+		case errors.As(err, &intErr):
+			log.Error(err)
+			g.JSON(http.StatusInternalServerError, gin.H{"error": err})
+		case errors.As(err, &qCondErr):
+			log.Error(err)
+			g.JSON(http.StatusBadRequest, gin.H{"error": err})
+		default:
+			log.Error(err)
+			g.JSON(http.StatusInternalServerError, gin.H{"error": err})
+		}
+		return
+	}
+
+	g.JSON(http.StatusOK, gin.H{"status": "sucess"})
+}
+
+// Delete movie_imdb_info
+// @Summary Delete movie_imdb_info
+// @Description Delete movie_imdb_info by id
+// @Tags movie_imdb_info
+// @Accept json
+// @Produce json
+// @Param id path integer true "movie_imdb_info id"
+// @Success 200
+// @Failure 400
+// @Failure 500
+// @Router /movie_imdb_info/{id} [delete]
+func DeleteMovieImdbInfoHandler(g *gin.Context) {
+	id, err := strconv.Atoi(g.Param("id"))
+	if err != nil {
+		g.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	err = deleteMovieImdbInfo(id)
+
+	if err != nil {
+		switch {
+		case errors.As(err, &intErr):
+			log.Error(err)
+			g.JSON(http.StatusInternalServerError, gin.H{"error": err})
+		case errors.As(err, &qCondErr):
+			log.Error(err)
+			g.JSON(http.StatusBadRequest, gin.H{"error": err})
+		default:
+			log.Error(err)
+			g.JSON(http.StatusInternalServerError, gin.H{"error": err})
+		}
+		return
+	}
+
+	g.JSON(http.StatusOK, gin.H{"status": "movie_imdb_info is deleted"})
+}
+
 func AddApiRoutes(g *gin.RouterGroup) {
 	g.POST("/db/init_db", InitHandler)
 	g.POST("/db/init_db_data", InitTestDataHandler)
@@ -612,4 +803,10 @@ func AddApiRoutes(g *gin.RouterGroup) {
 	g.POST("/ratings", AddRatingHandler)
 	g.PATCH("/ratings/:id", UpdateRatingHandler)
 	g.DELETE("/ratings/:id", DeleteRatingHandler)
+	//movie imdb info
+	g.GET("/movie_imdb_info", ListMovieImdbInfoHandler)
+	g.GET("/movie_imdb_info/:id", QueryMovieImdbInfoHandler)
+	g.POST("/movie_imdb_info", AddMovieImdbInfoHandler)
+	g.PATCH("/movie_imdb_info/:id", UpdateMovieImdbInfoHandler)
+	g.DELETE("/movie_imdb_info/:id", DeleteMovieImdbInfoHandler)
 }
