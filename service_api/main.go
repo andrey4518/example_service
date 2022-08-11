@@ -4,6 +4,8 @@ import (
 	db "example/service/api/db"
 	"example/service/api/docs"
 
+	notifier "example/service/api/notifier"
+
 	"github.com/gin-gonic/gin"
 	swaggerfiles "github.com/swaggo/files"     // swagger embed files
 	ginSwagger "github.com/swaggo/gin-swagger" // gin-swagger middleware
@@ -35,6 +37,8 @@ func main() {
 	v1 := r.Group("/api/v1")
 
 	db.AddApiRoutes(v1)
+	go notifier.CreateObjectCreationNotifierFunc()(notifier.ObjectCreationNotificationChannel)
+	// go prod.CreateConsumerFunc()()
 
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerfiles.Handler))
 	r.Run() // listen and serve on 0.0.0.0:8080
