@@ -4,9 +4,10 @@ import (
 	"fmt"
 	"strconv"
 
+	"example/service/api/config"
+
 	pq "github.com/lib/pq"
 	log "github.com/sirupsen/logrus"
-	"github.com/spf13/viper"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
@@ -58,7 +59,7 @@ var _db *gorm.DB
 
 func get_db() (*gorm.DB, error) {
 	if _db == nil {
-		db, err := gorm.Open(postgres.Open(viper.GetString("common.pg_connection_string")), &gorm.Config{})
+		db, err := gorm.Open(postgres.Open(config.GetDbConnectionString()), &gorm.Config{})
 		if err != nil {
 			return nil, &InternalError{Message: fmt.Sprintf("can't open database connection: %s", err.Error())}
 		}

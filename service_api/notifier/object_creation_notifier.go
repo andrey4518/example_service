@@ -8,24 +8,27 @@ import (
 	"reflect"
 
 	kafka "github.com/segmentio/kafka-go"
+	"github.com/spf13/viper"
 )
 
 var ObjectCreationNotificationChannel = make(chan interface{}, 50)
 
 type NotifierFunc func(chan interface{})
 
-var kafka_url = "example_service_kafka_1:9092"
-var topic = "test-topic"
-
-func getKafkaWriter(kafkaURL, topic string) *kafka.Writer {
+func getKafkaWriter() *kafka.Writer {
+	viper.BindEnv("KAFKA_URL")
+	viper.BindEnv("OBJECT_CREATION_TOPIC_NAME")
+	kafka_url := viper.GetString("KAFKA_URL")
+	topic := viper.GetString("OBJECT_CREATION_TOPIC_NAME")
+	fmt.Printf("Creating kafka writer with url '%s' and topic '%s'", kafka_url, topic)
 	return &kafka.Writer{
-		Addr:     kafka.TCP(kafkaURL),
+		Addr:     kafka.TCP(kafka_url),
 		Topic:    topic,
 		Balancer: &kafka.LeastBytes{},
 	}
 }
 
-var kafkaWriter = getKafkaWriter(kafka_url, topic)
+var kafkaWriter = getKafkaWriter()
 
 func KafkaNotifier(c chan interface{}) {
 	for val := range c {
@@ -36,7 +39,7 @@ func KafkaNotifier(c chan interface{}) {
 		fmt.Println(string(r))
 
 		kafka_msg := kafka.Message{
-			Key:   []byte("test_key"),
+			Key:   []byte(reflect.TypeOf(val).Name()),
 			Value: r,
 		}
 

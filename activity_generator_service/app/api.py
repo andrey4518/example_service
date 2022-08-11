@@ -6,6 +6,7 @@ from dto import CurrentScheduledJobsResponse, JobCreateDeleteResponse
 import json
 import aiohttp
 import local_db_queries as q
+import os
 
 router = APIRouter()
 
@@ -43,7 +44,7 @@ async def user_generating_job(endpoint):
 
 
 @router.get('/start_user_generating_activity',response_model=JobCreateDeleteResponse,tags=["generating"])
-async def start_user_generating_activity(interval: int=5, endpoint: str='http://example_service_api_1:8080/api/v1/users'):
+async def start_user_generating_activity(interval: int=5, endpoint: str=f'{os.getenv("API_URL", "http://api:8080/api/v1")}/users'):
     scheduler = await get_scheduler()
     job = scheduler.add_job(user_generating_job,'interval', seconds=interval, args=[endpoint])
     return {
@@ -85,7 +86,7 @@ async def movie_generating_job(endpoint):
 
 
 @router.get('/start_movie_generating_activity',response_model=JobCreateDeleteResponse,tags=["generating"])
-async def start_user_generating_activity(interval: int=5, endpoint: str='http://example_service_api_1:8080/api/v1/movies'):
+async def start_user_generating_activity(interval: int=5, endpoint: str=f'{os.getenv("API_URL", "http://api:8080/api/v1")}/movies'):
     scheduler = await get_scheduler()
     job = scheduler.add_job(movie_generating_job, 'interval', seconds=interval, args=[endpoint])
     return {
@@ -132,7 +133,7 @@ async def rating_generating_job(endpoint):
 
 
 @router.get('/start_rating_generating_activity',response_model=JobCreateDeleteResponse,tags=["generating"])
-async def start_user_generating_activity(interval: int=5, endpoint: str='http://example_service_api_1:8080/api/v1/ratings'):
+async def start_user_generating_activity(interval: int=5, endpoint: str=f'{os.getenv("API_URL", "http://api:8080/api/v1")}/ratings'):
     scheduler = await get_scheduler()
     job = scheduler.add_job(rating_generating_job, 'interval', seconds=interval, args=[endpoint])
     return {

@@ -49,16 +49,3 @@ async def remove_job_scheduler(job_id):
     except Exception:
         pass
     return {"scheduled":False,"job_id":job_id}
-
-
-async def time_job(seconds):
-    logger.info("Start test job")
-    sleep(seconds)
-    logger.info("Finished test job")
-
-
-@router.post("/test_schedule",response_model=JobCreateDeleteResponse,tags=["schedule"])
-async def run_job(length: int, interval: int):
-    scheduler = await get_scheduler()
-    job = scheduler.add_job(time_job,'interval', seconds=interval, args=[length])
-    return {"scheduled":True,"job_id":job.id}
