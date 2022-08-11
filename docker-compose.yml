@@ -1,4 +1,19 @@
 version: '3'
+x-example-service-common:
+  &example-service-common
+  environment:
+    &example-service-common-env
+    POSTGRES_USER: example
+    POSTGRES_PASSWORD: example
+    POSTGRES_DB: example
+    KAFKA_URL: kafka:9092
+    OBJECT_CREATION_TOPIC_NAME: object_creation_topic
+    API_URL: http://api:8080/api/v1
+  depends_on:
+    &example-service-common-depends-on
+    - postgres
+    - zookeeper
+    - kafka
 
 services:
   postgres:
@@ -6,11 +21,9 @@ services:
     ports:
       - 15432:5432
     environment:
-      POSTGRES_USER: example
-      POSTGRES_PASSWORD: example
-      POSTGRES_DB: example
+      <<: *example-service-common-env
     volumes:
-      - example-service-postgres-db-volume:/var/lib/postgresql/data
+      - postgres-db-volume:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD", "pg_isready", "-U", "example"]
       interval: 5s
@@ -19,13 +32,50 @@ services:
 
   api:
     build: service_api/.
+    environment:
+      <<: *example-service-common-env
+      POSTGRES_PORT: 5432
+      POSTGRES_HOST: postgres
     ports:
-      - 18080:8080
+      - 8081:8080
+
+  activity_generator_service:
+    build: activity_generator_service/.
+    ports:
+      - 8082:8000
+    restart: always
+
+  zookeeper:
+    image: docker.io/bitnami/zookeeper:3.8
+    ports:
+      - "2181:2181"
+    volumes:
+      - "zookeeper_data:/bitnami"
+    environment:
+      - ALLOW_ANONYMOUS_LOGIN=yes
+
+  kafka:
+    image: docker.io/bitnami/kafka:3.2
+    ports:
+      - "9092:9092"
+    volumes:
+      - "kafka_data:/bitnami"
+    environment:
+      - KAFKA_CFG_ZOOKEEPER_CONNECT=zookeeper:2181
+      - ALLOW_PLAINTEXT_LISTENER=yes
+    depends_on:
+      - zookeeper
+
+  detailed_info_scraper_service:
+    build: detailed_info_scraper_service/.
+    restart: always
+    environment:
+      <<: *example-service-common-env
+      PYTHONUNBUFFERED: 1
 
 volumes:
-  example-service-postgres-db-volume:
-
-networks: 
-  default: 
-    external: 
-      name: awesome_service_network
+  postgres-db-volume:
+  zookeeper_data:
+    driver: local
+  kafka_data:
+    driver: local

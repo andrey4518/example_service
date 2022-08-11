@@ -3,6 +3,7 @@ import asyncio
 import json
 from imdb import Cinemagoer
 import requests
+import os
 
 
 async def consume():
@@ -36,9 +37,9 @@ async def consume():
     ]
     print('creating consumer')
     consumer = AIOKafkaConsumer(
-        'test-topic',
-        bootstrap_servers='example_service_kafka_1:9092',
-        group_id="main-group")
+        os.getenv("OBJECT_CREATION_TOPIC_NAME", 'test-topic'),
+        bootstrap_servers=os.getenv("KAFKA_URL", 'kafka:9092')
+    )
     # Get cluster layout and join group `my-group`
     print('starting consumer')
     await consumer.start()
@@ -65,7 +66,7 @@ async def consume():
                 movie_info['plot_outline'] = movie_info['plot outline']
                 del movie_info['plot outline']
                 r = requests.post(
-                    'http://example_service_api_1:8080/api/v1/movie_imdb_info',
+                    f'{os.getenv("API_URL", "http://api:8080/api/v1")}/movie_imdb_info',
                     data=json.dumps(movie_info)
                 )
                 print(movie_info)

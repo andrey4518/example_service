@@ -4,6 +4,7 @@ import (
 	db "example/service/api/db"
 	"example/service/api/docs"
 
+	"example/service/api/config"
 	notifier "example/service/api/notifier"
 
 	"github.com/gin-gonic/gin"
@@ -23,13 +24,13 @@ import (
 // @license.name  Apache 2.0
 // @license.url   http://www.apache.org/licenses/LICENSE-2.0.html
 
-// @host      localhost:18080
+// @host      localhost:8081
 // @BasePath  /api/v1
 
 // @securityDefinitions.basic  BasicAuth
 
 func main() {
-	init_config()
+	config.InitConfig()
 
 	r := gin.Default()
 	docs.SwaggerInfo.BasePath = "/api/v1"
