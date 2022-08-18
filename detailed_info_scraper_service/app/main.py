@@ -37,7 +37,7 @@ async def consume():
     ]
     print('creating consumer')
     consumer = AIOKafkaConsumer(
-        os.getenv("OBJECT_CREATION_TOPIC_NAME", 'test-topic'),
+        os.getenv("MOVIE_CREATION_TOPIC_NAME", 'test-topic'),
         bootstrap_servers=os.getenv("KAFKA_URL", 'kafka:9092')
     )
     # Get cluster layout and join group `my-group`

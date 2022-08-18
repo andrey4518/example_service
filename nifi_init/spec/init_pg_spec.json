@@ -1,0 +1,36 @@
+[
+    {
+        "registry_name": "main_registry",
+        "url": "http://nifi-registry:18080",
+        "buckets": [
+            {
+                "name": "test",
+                "process_groups": [
+                    {
+                        "pg_name": "process_object_creation_events",
+                        "setups" : [
+                            {
+                                "processor_name": "ConsumeObjectCreationMessages",
+                                "properties": [
+                                    {
+                                        "name": "sasl.password",
+                                        "value": "bitnami"
+                                    }
+                                ]
+                            },
+                            {
+                                "processor_name": "PublishKafkaRecord_2_6",
+                                "properties": [
+                                    {
+                                        "name": "sasl.password",
+                                        "value": "bitnami"
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                ]
+            }
+        ]
+    }
+]
