@@ -138,6 +138,7 @@ if __name__ == '__main__':
                     x += x_step
 
                 nipyapi.canvas.schedule_process_group(_pg.id, scheduled=False)
+                nipyapi.versioning.update_flow_ver(_pg, target_version=None)
                 for setup in pg['setups']:
                     processor = get_processor(setup['processor_name'], _pg.id)
                     if processor is None:
