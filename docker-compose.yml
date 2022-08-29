@@ -31,7 +31,30 @@ services:
       driver: "fluentd"
       options:
         fluentd-address: localhost:24224
-        tag: api.service
+        tag: postgres
+
+  postgres-ml-flow:
+    image: postgres:13
+    ports:
+      - 25432:5432
+    environment:
+      POSTGRES_USER: ml_flow
+      POSTGRES_PASSWORD: ml_flow
+      POSTGRES_DB: ml_flow
+    volumes:
+      - postgres-ml-flow-db-volume:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "example"]
+      interval: 5s
+      retries: 5
+    restart: always
+    depends_on:
+      - fluentd
+    logging:
+      driver: "fluentd"
+      options:
+        fluentd-address: localhost:24224
+        tag: postgres-ml-flow
 
   api:
     build: service_api/.
@@ -232,8 +255,41 @@ services:
     env_file:
       - ./hadoop/hadoop.env
 
+  mlflow_server:
+    restart: always
+    build: ./mlflow
+    image: mlflow_server
+    container_name: mlflow_server
+    ports:
+        - 5000:5000
+    command: mlflow server --backend-store-uri postgresql://ml_flow:ml_flow@postgres-ml-flow:5432/ml_flow --default-artifact-root hdfs://namenode:9000/MlflowArtifacts --host 0.0.0.0 -p 5000
+    depends_on:
+      - namenode
+      - postgres-ml-flow
+
+
+  # minio:
+  #   image: quay.io/minio/minio:RELEASE.2022-08-26T19-53-15Z
+  #   command: server --console-address ":9001" http://minio/data{1...2}
+  #   ports:
+  #     - "19000:9000"
+  #     - "19001:9001"
+  #   environment:
+  #     MINIO_ROOT_USER: minioadmin
+  #     MINIO_ROOT_PASSWORD: minioadmin
+  #   healthcheck:
+  #     test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+  #     interval: 30s
+  #     timeout: 20s
+  #     retries: 3
+  #   hostname: minio
+  #   volumes:
+  #     - minio-data1-1:/data1
+  #     - minio-data1-2:/data2
+
 volumes:
   postgres-db-volume:
+  postgres-ml-flow-db-volume:
   zookeeper_data:
     driver: local
   kafka_data:
@@ -241,3 +297,5 @@ volumes:
   hadoop_namenode_vol:
   hadoop_datanode_vol:
   hadoop_historyserver_vol:
+  # minio-data1-1:
+  # minio-data1-2:
