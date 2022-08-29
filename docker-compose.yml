@@ -25,6 +25,13 @@ services:
       interval: 5s
       retries: 5
     restart: always
+    depends_on:
+      - fluentd
+    logging:
+      driver: "fluentd"
+      options:
+        fluentd-address: localhost:24224
+        tag: api.service
 
   api:
     build: service_api/.
@@ -37,6 +44,12 @@ services:
     depends_on:
       - postgres
       - kafka
+      - fluentd
+    logging:
+      driver: "fluentd"
+      options:
+        fluentd-address: localhost:24224
+        tag: api.service
 
   activity_generator_service:
     build: activity_generator_service/.
@@ -45,6 +58,12 @@ services:
     restart: always
     depends_on:
       - api
+      - fluentd
+    logging:
+      driver: "fluentd"
+      options:
+        fluentd-address: localhost:24224
+        tag: activity_generator.service
 
   zookeeper:
     image: docker.io/bitnami/zookeeper:3.8
@@ -54,6 +73,13 @@ services:
       - "zookeeper_data:/bitnami"
     environment:
       - ALLOW_ANONYMOUS_LOGIN=yes
+    depends_on:
+      - fluentd
+    logging:
+      driver: "fluentd"
+      options:
+        fluentd-address: localhost:24224
+        tag: zookeeper
 
   kafka:
     image: docker.io/bitnami/kafka:3.2
@@ -66,6 +92,12 @@ services:
       - ALLOW_PLAINTEXT_LISTENER=yes
     depends_on:
       - zookeeper
+      - fluentd
+    logging:
+      driver: "fluentd"
+      options:
+        fluentd-address: localhost:24224
+        tag: kafka
 
   detailed_info_scraper_service:
     build: detailed_info_scraper_service/.
@@ -76,6 +108,12 @@ services:
     depends_on:
       - api
       - kafka
+      - fluentd
+    logging:
+      driver: "fluentd"
+      options:
+        fluentd-address: localhost:24224
+        tag: detailed_info_scraper.service
 
   nifi:
     image: apache/nifi:1.17.0
@@ -89,13 +127,15 @@ services:
       NIFI_WEB_HTTP_PORT: '8080'
       NIFI_WEB_HTTPS_HOST: 
       NIFI_WEB_HTTPS_PORT: 
-    # volumes:
-    # - nifi-registry-database:/opt/nifi-registry/nifi-registry-current/database
-    # - nifi-registry-flow-storage:/opt/nifi-registry/nifi-registry-current/flow_storage
-    # - nifi-conf:/opt/nifi/nifi-current/conf
     depends_on:
       - kafka
       - postgres
+      - fluentd
+    logging:
+      driver: "fluentd"
+      options:
+        fluentd-address: localhost:24224
+        tag: nifi
 
   nifi-registry:
     image: apache/nifi-registry:1.17.0
@@ -103,6 +143,13 @@ services:
       - 18080:18080
     volumes:
       - ${NIFI_REGISTRY_PROVIDERS_CONF:-./nifi_registry/providers.xml}:/opt/nifi-registry/nifi-registry-current/conf/providers.xml
+    depends_on:
+      - fluentd
+    logging:
+      driver: "fluentd"
+      options:
+        fluentd-address: localhost:24224
+        tag: nifi-reg
 
   nifi-init:
     build: nifi_init/.
@@ -112,6 +159,78 @@ services:
     depends_on:
       - nifi
       - nifi-registry
+      - fluentd
+    logging:
+      driver: "fluentd"
+      options:
+        fluentd-address: localhost:24224
+        tag: nifi-init
+
+  fluentd:
+    build: ./fluentd
+    volumes:
+      - ./fluentd/conf:/fluentd/etc
+    ports:
+      - "24224:24224"
+      - "24224:24224/udp"
+    depends_on:
+      - namenode
+
+  namenode:
+    image: bde2020/hadoop-namenode:2.0.0-hadoop3.2.1-java8
+    container_name: namenode
+    restart: always
+    ports:
+      - 9870:9870
+      - 9000:9000
+    volumes:
+      - hadoop_namenode_vol:/hadoop/dfs/name
+    environment:
+      - CLUSTER_NAME=test
+    env_file:
+      - ./hadoop/hadoop.env
+
+  datanode:
+    image: bde2020/hadoop-datanode:2.0.0-hadoop3.2.1-java8
+    container_name: datanode
+    restart: always
+    ports:
+      - 9864:9864
+    volumes:
+      - hadoop_datanode_vol:/hadoop/dfs/data
+    environment:
+      SERVICE_PRECONDITION: "namenode:9870"
+    env_file:
+      - ./hadoop/hadoop.env
+  
+  resourcemanager:
+    image: bde2020/hadoop-resourcemanager:2.0.0-hadoop3.2.1-java8
+    container_name: resourcemanager
+    restart: always
+    environment:
+      SERVICE_PRECONDITION: "namenode:9000 namenode:9870 datanode:9864"
+    env_file:
+      - ./hadoop/hadoop.env
+
+  nodemanager1:
+    image: bde2020/hadoop-nodemanager:2.0.0-hadoop3.2.1-java8
+    container_name: nodemanager
+    restart: always
+    environment:
+      SERVICE_PRECONDITION: "namenode:9000 namenode:9870 datanode:9864 resourcemanager:8088"
+    env_file:
+      - ./hadoop/hadoop.env
+  
+  historyserver:
+    image: bde2020/hadoop-historyserver:2.0.0-hadoop3.2.1-java8
+    container_name: historyserver
+    restart: always
+    environment:
+      SERVICE_PRECONDITION: "namenode:9000 namenode:9870 datanode:9864 resourcemanager:8088"
+    volumes:
+      - hadoop_historyserver_vol:/hadoop/yarn/timeline
+    env_file:
+      - ./hadoop/hadoop.env
 
 volumes:
   postgres-db-volume:
@@ -119,6 +238,6 @@ volumes:
     driver: local
   kafka_data:
     driver: local
-  nifi-registry-database:
-  nifi-registry-flow-storage:
-  nifi-conf:
+  hadoop_namenode_vol:
+  hadoop_datanode_vol:
+  hadoop_historyserver_vol:
