@@ -55,6 +55,15 @@ type Rating struct {
 	Rating  float32 `form:"rating" json:"rating" xml:"rating" binding:"required"`
 }
 
+type Tag struct {
+	ID      uint   `gorm:"primaryKey" json:"id" xml:"id" swaggerignore:"true"`
+	UserID  uint   `form:"user_id" json:"user_id" xml:"user_id" binding:"required"`
+	User    User   `gorm:"foreignKey:UserID" json:"-" swaggerignore:"true" binding:"-"`
+	MovieID uint   `form:"movie_id" json:"movie_id" xml:"movie_id" binding:"required"`
+	Movie   Movie  `gorm:"foreignKey:MovieID" json:"-" swaggerignore:"true" binding:"-"`
+	TagText string `form:"tag_text" json:"tag_text" xml:"tag_text"  binding:"required"`
+}
+
 var _db *gorm.DB
 
 func get_db() (*gorm.DB, error) {
@@ -78,6 +87,7 @@ func Init() error {
 		&Movie{},
 		&User{},
 		&Rating{},
+		&Tag{},
 		&MovieImdbInfo{},
 	)
 	log.Info("Database initialized")
@@ -502,6 +512,109 @@ func deleteMovieImdbInfo(id int) error {
 	}
 
 	result := db.Delete(&MovieImdbInfo{}, id)
+
+	if result.Error != nil {
+		return &InternalError{Message: fmt.Sprintf("can't perform delete operation: %s", result.Error.Error())}
+	}
+
+	if result.RowsAffected == 0 {
+		return &QueryConditionError{Message: fmt.Sprintf("can't find object by this id <%d>", id)}
+	}
+
+	return nil
+}
+
+func listTags() ([]Tag, error) {
+	db, err := get_db()
+
+	var tags []Tag
+
+	if err != nil {
+		return tags, &InternalError{Message: fmt.Sprintf("can't open database connection: %s", err.Error())}
+	}
+
+	result := db.Find(&tags)
+
+	if result.Error != nil {
+		return tags, &InternalError{Message: fmt.Sprintf("can't perform query operation: %s", err.Error())}
+	}
+
+	return tags, nil
+}
+
+func addTag(t *Tag) error {
+	db, err := get_db()
+
+	if err != nil {
+		return &InternalError{Message: fmt.Sprintf("can't open database connection: %s", err.Error())}
+	}
+
+	result := db.Create(t)
+
+	if result.Error != nil {
+		return &InternalError{Message: fmt.Sprintf("can't perform insert operation: %s", result.Error.Error())}
+	}
+
+	log.Info("Insert Tag with id: <" + strconv.Itoa(int(t.ID)) + ">")
+
+	return nil
+}
+
+func queryTag(id int) (Tag, error) {
+	db, err := get_db()
+	var tag Tag
+
+	if err != nil {
+		return tag, &InternalError{Message: fmt.Sprintf("can't open database connection: %s", err.Error())}
+	}
+
+	result := db.Where("id = ?", id).First(&tag)
+
+	if result.Error != nil {
+		return tag, &InternalError{Message: fmt.Sprintf("can't perform query operation: %s", result.Error.Error())}
+	}
+
+	if result.RowsAffected == 0 {
+		return tag, &QueryConditionError{Message: fmt.Sprintf("can't find object by this id <%d>", id)}
+	}
+
+	return tag, nil
+}
+
+func updateTag(id int, tag *Tag) error {
+	db, err := get_db()
+
+	if err != nil {
+		return &InternalError{Message: fmt.Sprintf("can't open database connection: %s", err.Error())}
+	}
+
+	var data Tag
+	result := db.Where("id = ?", id).First(&data)
+
+	if result.Error != nil {
+		return &InternalError{Message: fmt.Sprintf("can't perform query operation: %s", result.Error.Error())}
+	}
+
+	if result.RowsAffected == 0 {
+		return &QueryConditionError{Message: fmt.Sprintf("can't find object by this id <%d>", id)}
+	}
+
+	result = db.Model(&data).Select("*").Omit("id").Updates(tag)
+
+	if result.Error != nil {
+		return &InternalError{Message: fmt.Sprintf("can't perform update operation: %s", result.Error.Error())}
+	}
+
+	return nil
+}
+
+func deleteTag(id int) error {
+	db, err := get_db()
+	if err != nil {
+		return &InternalError{Message: fmt.Sprintf("can't open database connection: %s", err.Error())}
+	}
+
+	result := db.Delete(&Tag{}, id)
 
 	if result.Error != nil {
 		return &InternalError{Message: fmt.Sprintf("can't perform delete operation: %s", result.Error.Error())}
