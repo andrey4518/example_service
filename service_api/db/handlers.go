@@ -782,6 +782,184 @@ func DeleteMovieImdbInfoHandler(g *gin.Context) {
 	g.JSON(http.StatusOK, gin.H{"status": "movie_imdb_info is deleted"})
 }
 
+// Get tags
+// @Summary Get tags
+// @Description Get list of all tags
+// @Tags tags
+// @Accept json
+// @Produce json
+// @Success 200
+// @Failure 500
+// @Router /tags [get]
+func ListTagsHandler(g *gin.Context) {
+	tags, err := listTags()
+
+	if err != nil {
+		log.Error(err)
+		g.JSON(http.StatusInternalServerError, gin.H{"error": err})
+		return
+	}
+	g.JSON(http.StatusOK, gin.H{"tags": tags})
+}
+
+// Add tag
+// @Summary Add tag
+// @Description Creates tag in database
+// @Tags tags
+// @Accept json
+// @Produce json
+// @Param tag body db.Tag true "tag info"
+// @Success 200
+// @Failure 400
+// @Failure 500
+// @Router /tags [post]
+func AddTagHandler(g *gin.Context) {
+	var json Tag
+
+	if err := g.ShouldBindJSON(&json); err != nil {
+		g.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	err := addTag(&json)
+	if err != nil {
+		switch {
+		case errors.As(err, &intErr):
+			log.Error(err)
+			g.JSON(http.StatusInternalServerError, gin.H{"error": err})
+		case errors.As(err, &qCondErr):
+			log.Error(err)
+			g.JSON(http.StatusBadRequest, gin.H{"error": err})
+		default:
+			log.Error(err)
+			g.JSON(http.StatusInternalServerError, gin.H{"error": err})
+		}
+		return
+	}
+
+	notifier.ObjectCreationNotificationChannel <- json
+	g.JSON(http.StatusOK, gin.H{"status": "tag is created", "tag": json})
+}
+
+// Query tag
+// @Summary Query tag
+// @Description Shows tag by id
+// @Tags tags
+// @Accept json
+// @Produce json
+// @Param id path integer true "tag id"
+// @Success 200
+// @Failure 400
+// @Failure 500
+// @Router /tags/{id} [get]
+func QueryTagHandler(g *gin.Context) {
+  id, err := strconv.Atoi(g.Param("id"))
+
+	if err != nil {
+		g.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	tag, err := queryTag(id)
+
+	if err != nil {
+		switch {
+		case errors.As(err, &intErr):
+			log.Error(err)
+			g.JSON(http.StatusInternalServerError, gin.H{"error": err})
+		case errors.As(err, &qCondErr):
+			log.Error(err)
+			g.JSON(http.StatusBadRequest, gin.H{"error": err})
+		default:
+			log.Error(err)
+			g.JSON(http.StatusInternalServerError, gin.H{"error": err})
+		}
+		return
+	}
+	g.JSON(http.StatusOK, gin.H{"tag": tag})
+}
+
+// Update tag
+// @Summary Update tag
+// @Description Updates tag info specified by id
+// @Tags tags
+// @Accept json
+// @Produce json
+// @Param user body db.Tag true "tag info"
+// @Param id path integer true "tag id"
+// @Success 200
+// @Failure 400
+// @Failure 500
+// @Router /tags/{id} [patch]
+func UpdateTagHandler(g *gin.Context) {
+	id, err := strconv.Atoi(g.Param("id"))
+	if err != nil {
+		g.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	var json Tag
+
+	if err := g.ShouldBindJSON(&json); err != nil {
+		g.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	err = updateTag(id, &json)
+
+	if err != nil {
+		switch {
+		case errors.As(err, &intErr):
+			log.Error(err)
+			g.JSON(http.StatusInternalServerError, gin.H{"error": err})
+		case errors.As(err, &qCondErr):
+			log.Error(err)
+			g.JSON(http.StatusBadRequest, gin.H{"error": err})
+		default:
+			log.Error(err)
+			g.JSON(http.StatusInternalServerError, gin.H{"error": err})
+		}
+		return
+	}
+
+	g.JSON(http.StatusOK, gin.H{"status": "sucess"})
+}
+
+// Delete tag
+// @Summary Delete tag
+// @Description Delete tag by id
+// @Tags tags
+// @Accept json
+// @Produce json
+// @Param id path integer true "tag id"
+// @Success 200
+// @Failure 400
+// @Failure 500
+// @Router /tags/{id} [delete]
+func DeleteTagHandler(g *gin.Context) {
+	id, err := strconv.Atoi(g.Param("id"))
+	if err != nil {
+		g.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	err = deleteTag(id)
+
+	if err != nil {
+		switch {
+		case errors.As(err, &intErr):
+			log.Error(err)
+			g.JSON(http.StatusInternalServerError, gin.H{"error": err})
+		case errors.As(err, &qCondErr):
+			log.Error(err)
+			g.JSON(http.StatusBadRequest, gin.H{"error": err})
+		default:
+			log.Error(err)
+			g.JSON(http.StatusInternalServerError, gin.H{"error": err})
+		}
+		return
+	}
+
+	g.JSON(http.StatusOK, gin.H{"status": "tag is deleted"})
+}
+
 // Get movie tmdb infos
 // @Summary Get movie tmdb infos
 // @Description Get list of all movie tmdb infos
@@ -987,6 +1165,12 @@ func AddApiRoutes(g *gin.RouterGroup) {
 	g.POST("/ratings", AddRatingHandler)
 	g.PATCH("/ratings/:id", UpdateRatingHandler)
 	g.DELETE("/ratings/:id", DeleteRatingHandler)
+	//tags
+	g.GET("/tags", ListTagsHandler)
+	g.GET("/tags/:id", QueryTagHandler)
+	g.POST("/tags", AddTagHandler)
+	g.PATCH("/tags/:id", UpdateTagHandler)
+	g.DELETE("/tags/:id", DeleteTagHandler)
 	//movie imdb info
 	g.GET("/movie_imdb_info", ListMovieImdbInfoHandler)
 	g.GET("/movie_imdb_info/:id", QueryMovieImdbInfoHandler)
