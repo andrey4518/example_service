@@ -1,3 +1,4 @@
 aiokafka
 cinemagoer
 requests
+tmdbv3api
