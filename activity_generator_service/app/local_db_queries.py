@@ -204,3 +204,53 @@ async def set_rating_exported(rating_id):
         rating = result.fetchone()[0]
         rating.exported = True
         await session.commit()
+
+
+async def get_tag_ready_to_export():
+    engine = await create_local_db_engine()
+    async_session = sessionmaker(
+        engine, expire_on_commit=False, class_=AsyncSession
+    )
+
+    async with async_session() as session:
+        stmt = select(local_db_dto.Tag)\
+            .join(local_db_dto.Tag.movie)\
+            .join(local_db_dto.Tag.user)\
+            .where(sa.and_(
+                local_db_dto.Tag.exported == False,
+                local_db_dto.Movie.exported,
+                local_db_dto.User.exported
+            )).order_by(func.random()).limit(1)
+        result = await session.execute(stmt)
+        tag = result.fetchone()
+        if tag is None:
+            return None
+        else:
+            tag = tag[0]
+        return tag
+
+
+async def get_exported_tags():
+    engine = await create_local_db_engine()
+    async_session = sessionmaker(
+        engine, expire_on_commit=False, class_=AsyncSession
+    )
+
+    async with async_session() as session:
+        stmt = select(local_db_dto.Tag).where(local_db_dto.Tag.exported)
+        result = await session.execute(stmt)
+        return [row.Tag for row in result]
+
+
+async def set_tag_exported(tag_id):
+    engine = await create_local_db_engine()
+    async_session = sessionmaker(
+        engine, expire_on_commit=False, class_=AsyncSession
+    )
+
+    async with async_session() as session:
+        stmt = select(local_db_dto.Tag).where(local_db_dto.Tag.id == tag_id)
+        result = await session.execute(stmt)
+        tag = result.fetchone()[0]
+        tag.exported = True
+        await session.commit()
