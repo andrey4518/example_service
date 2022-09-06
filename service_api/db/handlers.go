@@ -678,7 +678,7 @@ func QueryMovieImdbInfoHandler(g *gin.Context) {
 		return
 	}
 
-	rating, err := queryMovieImdbInfo(id)
+	info, err := queryMovieImdbInfo(id)
 
 	if err != nil {
 		switch {
@@ -695,7 +695,7 @@ func QueryMovieImdbInfoHandler(g *gin.Context) {
 		return
 	}
 
-	g.JSON(http.StatusOK, gin.H{"movie_imdb_info": rating})
+	g.JSON(http.StatusOK, gin.H{"movie_imdb_info": info})
 }
 
 // Update movie_imdb_info
@@ -799,7 +799,6 @@ func ListTagsHandler(g *gin.Context) {
 		g.JSON(http.StatusInternalServerError, gin.H{"error": err})
 		return
 	}
-
 	g.JSON(http.StatusOK, gin.H{"tags": tags})
 }
 
@@ -821,7 +820,6 @@ func AddTagHandler(g *gin.Context) {
 		g.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-
 	err := addTag(&json)
 	if err != nil {
 		switch {
@@ -839,7 +837,6 @@ func AddTagHandler(g *gin.Context) {
 	}
 
 	notifier.ObjectCreationNotificationChannel <- json
-
 	g.JSON(http.StatusOK, gin.H{"status": "tag is created", "tag": json})
 }
 
@@ -855,13 +852,12 @@ func AddTagHandler(g *gin.Context) {
 // @Failure 500
 // @Router /tags/{id} [get]
 func QueryTagHandler(g *gin.Context) {
-	id, err := strconv.Atoi(g.Param("id"))
+  id, err := strconv.Atoi(g.Param("id"))
 
 	if err != nil {
 		g.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-
 	tag, err := queryTag(id)
 
 	if err != nil {
@@ -878,7 +874,6 @@ func QueryTagHandler(g *gin.Context) {
 		}
 		return
 	}
-
 	g.JSON(http.StatusOK, gin.H{"tag": tag})
 }
 
@@ -900,7 +895,6 @@ func UpdateTagHandler(g *gin.Context) {
 		g.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-
 	var json Tag
 
 	if err := g.ShouldBindJSON(&json); err != nil {
@@ -966,6 +960,190 @@ func DeleteTagHandler(g *gin.Context) {
 	g.JSON(http.StatusOK, gin.H{"status": "tag is deleted"})
 }
 
+// Get movie tmdb infos
+// @Summary Get movie tmdb infos
+// @Description Get list of all movie tmdb infos
+// @Tags movie_tmdb_info
+// @Accept json
+// @Produce json
+// @Success 200
+// @Failure 500
+// @Router /movie_tmdb_info [get]
+func ListMovieTmdbInfoHandler(g *gin.Context) {
+	infos, err := listMovieTmdbInfo()
+
+	if err != nil {
+		log.Error(err)
+		g.JSON(http.StatusInternalServerError, gin.H{"error": err})
+		return
+	}
+
+	g.JSON(http.StatusOK, gin.H{"movie_tmdb_infos": infos})
+}
+
+// Add movie_tmdb_info
+// @Summary Add movie_tmdb_info
+// @Description Creates movie_tmdb_info in database
+// @Tags movie_tmdb_info
+// @Accept json
+// @Produce json
+// @Param movie_tmdb_info body db.MovieTmdbInfo true "movie_tmdb_info"
+// @Success 200
+// @Failure 400
+// @Failure 500
+// @Router /movie_tmdb_info [post]
+func AddMovieTmdbInfoHandler(g *gin.Context) {
+	var json MovieTmdbInfo
+
+	if err := g.ShouldBindJSON(&json); err != nil {
+		g.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	err := addMovieTmdbInfo(&json)
+	if err != nil {
+		switch {
+		case errors.As(err, &intErr):
+			log.Error(err)
+			g.JSON(http.StatusInternalServerError, gin.H{"error": err})
+		case errors.As(err, &qCondErr):
+			log.Error(err)
+			g.JSON(http.StatusBadRequest, gin.H{"error": err})
+		default:
+			log.Error(err)
+			g.JSON(http.StatusInternalServerError, gin.H{"error": err})
+		}
+		return
+	}
+
+	notifier.ObjectCreationNotificationChannel <- json
+
+	g.JSON(http.StatusOK, gin.H{"status": "movie_tmdb_info is created", "movie_tmdb_info": json})
+}
+
+// Query movie_tmdb_info
+// @Summary Query movie_tmdb_info
+// @Description Shows movie_tmdb_info by id
+// @Tags movie_tmdb_info
+// @Accept json
+// @Produce json
+// @Param id path integer true "movie_tmdb_info id"
+// @Success 200
+// @Failure 400
+// @Failure 500
+// @Router /movie_tmdb_info/{id} [get]
+func QueryMovieTmdbInfoHandler(g *gin.Context) {
+	id, err := strconv.Atoi(g.Param("id"))
+
+	if err != nil {
+		g.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	info, err := queryMovieTmdbInfo(id)
+
+	if err != nil {
+		switch {
+		case errors.As(err, &intErr):
+			log.Error(err)
+			g.JSON(http.StatusInternalServerError, gin.H{"error": err})
+		case errors.As(err, &qCondErr):
+			log.Error(err)
+			g.JSON(http.StatusBadRequest, gin.H{"error": err})
+		default:
+			log.Error(err)
+			g.JSON(http.StatusInternalServerError, gin.H{"error": err})
+		}
+		return
+	}
+
+	g.JSON(http.StatusOK, gin.H{"movie_tmdb_info": info})
+}
+
+// Update movie_tmdb_info
+// @Summary Update movie_tmdb_info
+// @Description Updates movie_tmdb_info specified by id
+// @Tags movie_tmdb_info
+// @Accept json
+// @Produce json
+// @Param user body db.MovieTmdbInfo true "movie_tmdb_info"
+// @Param id path integer true "movie_tmdb_info id"
+// @Success 200
+// @Failure 400
+// @Failure 500
+// @Router /movie_tmdb_info/{id} [patch]
+func UpdateMovieTmdbInfoHandler(g *gin.Context) {
+	id, err := strconv.Atoi(g.Param("id"))
+	if err != nil {
+		g.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	var json MovieTmdbInfo
+
+	if err := g.ShouldBindJSON(&json); err != nil {
+		g.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	err = updateMovieTmdbInfo(id, &json)
+
+	if err != nil {
+		switch {
+		case errors.As(err, &intErr):
+			log.Error(err)
+			g.JSON(http.StatusInternalServerError, gin.H{"error": err})
+		case errors.As(err, &qCondErr):
+			log.Error(err)
+			g.JSON(http.StatusBadRequest, gin.H{"error": err})
+		default:
+			log.Error(err)
+			g.JSON(http.StatusInternalServerError, gin.H{"error": err})
+		}
+		return
+	}
+
+	g.JSON(http.StatusOK, gin.H{"status": "sucess"})
+}
+
+// Delete movie_tmdb_info
+// @Summary Delete movie_tmdb_info
+// @Description Delete movie_tmdb_info by id
+// @Tags movie_tmdb_info
+// @Accept json
+// @Produce json
+// @Param id path integer true "movie_tmdb_info id"
+// @Success 200
+// @Failure 400
+// @Failure 500
+// @Router /movie_tmdb_info/{id} [delete]
+func DeleteMovieTmdbInfoHandler(g *gin.Context) {
+	id, err := strconv.Atoi(g.Param("id"))
+	if err != nil {
+		g.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	err = deleteMovieTmdbInfo(id)
+
+	if err != nil {
+		switch {
+		case errors.As(err, &intErr):
+			log.Error(err)
+			g.JSON(http.StatusInternalServerError, gin.H{"error": err})
+		case errors.As(err, &qCondErr):
+			log.Error(err)
+			g.JSON(http.StatusBadRequest, gin.H{"error": err})
+		default:
+			log.Error(err)
+			g.JSON(http.StatusInternalServerError, gin.H{"error": err})
+		}
+		return
+	}
+
+	g.JSON(http.StatusOK, gin.H{"status": "movie_tmdb_info is deleted"})
+}
+
 func AddApiRoutes(g *gin.RouterGroup) {
 	g.POST("/db/init_db", InitHandler)
 	g.POST("/db/init_db_data", InitTestDataHandler)
@@ -999,4 +1177,10 @@ func AddApiRoutes(g *gin.RouterGroup) {
 	g.POST("/movie_imdb_info", AddMovieImdbInfoHandler)
 	g.PATCH("/movie_imdb_info/:id", UpdateMovieImdbInfoHandler)
 	g.DELETE("/movie_imdb_info/:id", DeleteMovieImdbInfoHandler)
+	//movie tmdb info
+	g.GET("/movie_tmdb_info", ListMovieTmdbInfoHandler)
+	g.GET("/movie_tmdb_info/:id", QueryMovieTmdbInfoHandler)
+	g.POST("/movie_tmdb_info", AddMovieTmdbInfoHandler)
+	g.PATCH("/movie_tmdb_info/:id", UpdateMovieTmdbInfoHandler)
+	g.DELETE("/movie_tmdb_info/:id", DeleteMovieTmdbInfoHandler)
 }

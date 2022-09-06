@@ -37,6 +37,24 @@ type MovieImdbInfo struct {
 	Synopsis      pq.StringArray `gorm:"type:text[]" form:"synopsis" json:"synopsis" xml:"synopsis" binding:"required" swaggertype:"array,string"`
 }
 
+type MovieTmdbInfo struct {
+	ID            uint           `gorm:"primaryKey" json:"id" xml:"id" swaggerignore:"true"`
+	MovieId       uint           `form:"movie_id" json:"movie_id" xml:"movie_id"  binding:"required"`
+	Adult         *bool          `form:"adult" json:"adult" xml:"adult"  binding:"required"`
+	Genres        pq.StringArray `gorm:"type:text[]" form:"genres" json:"genres" xml:"genres" binding:"required" swaggertype:"array,string"`
+	HomePage      string         `form:"homepage" json:"homepage" xml:"homepage"`
+	OriginalTitle string         `form:"original_title" json:"original_title" xml:"original_title"`
+	Overview      string         `form:"overview" json:"overview" xml:"overview"`
+	Popularity    float32        `form:"popularity" json:"popularity" xml:"popularity" binding:"required"`
+	Runtime       uint           `form:"runtime" json:"runtime" xml:"runtime" binding:"required"`
+	Tagline       string         `form:"tagline" json:"tagline" xml:"tagline"`
+	Title         string         `form:"title" json:"title" xml:"title"`
+	VoteAverage   float32        `form:"vote_average" json:"vote_average" xml:"vote_average" binding:"required"`
+	VoteCount     uint           `form:"vote_count" json:"vote_count" xml:"vote_count" binding:"required"`
+	Keywords      pq.StringArray `gorm:"type:text[]" form:"keywords" json:"keywords" xml:"keywords" binding:"required" swaggertype:"array,string"`
+	VideoURLs     pq.StringArray `gorm:"type:text[]" form:"video_urls" json:"video_urls" xml:"video_urls" binding:"required" swaggertype:"array,string"`
+}
+
 type User struct {
 	ID       uint   `gorm:"primaryKey" json:"id" xml:"id" swaggerignore:"true"`
 	Username string `form:"username" json:"username" xml:"username"  binding:"required"`
@@ -89,6 +107,7 @@ func Init() error {
 		&Rating{},
 		&Tag{},
 		&MovieImdbInfo{},
+		&MovieTmdbInfo{},
 	)
 	log.Info("Database initialized")
 	return nil
@@ -548,15 +567,14 @@ func addTag(t *Tag) error {
 	if err != nil {
 		return &InternalError{Message: fmt.Sprintf("can't open database connection: %s", err.Error())}
 	}
-
-	result := db.Create(t)
-
+  
+	result := db.Create(i)
+  
 	if result.Error != nil {
 		return &InternalError{Message: fmt.Sprintf("can't perform insert operation: %s", result.Error.Error())}
 	}
 
-	log.Info("Insert Tag with id: <" + strconv.Itoa(int(t.ID)) + ">")
-
+  log.Info("Insert Tag with id: <" + strconv.Itoa(int(t.ID)) + ">")
 	return nil
 }
 
@@ -587,7 +605,6 @@ func updateTag(id int, tag *Tag) error {
 	if err != nil {
 		return &InternalError{Message: fmt.Sprintf("can't open database connection: %s", err.Error())}
 	}
-
 	var data Tag
 	result := db.Where("id = ?", id).First(&data)
 
@@ -598,9 +615,8 @@ func updateTag(id int, tag *Tag) error {
 	if result.RowsAffected == 0 {
 		return &QueryConditionError{Message: fmt.Sprintf("can't find object by this id <%d>", id)}
 	}
-
 	result = db.Model(&data).Select("*").Omit("id").Updates(tag)
-
+  
 	if result.Error != nil {
 		return &InternalError{Message: fmt.Sprintf("can't perform update operation: %s", result.Error.Error())}
 	}
@@ -609,14 +625,122 @@ func updateTag(id int, tag *Tag) error {
 }
 
 func deleteTag(id int) error {
+	result := db.Where("id = ?", id).First(&data)
+
+	if result.Error != nil {
+		return &InternalError{Message: fmt.Sprintf("can't perform query operation: %s", result.Error.Error())}
+	}
+
+	if result.RowsAffected == 0 {
+		return &QueryConditionError{Message: fmt.Sprintf("can't find object by this id <%d>", id)}
+	}
+	result := db.Delete(&Tag{}, id)
+
+	if result.Error != nil {
+		return &InternalError{Message: fmt.Sprintf("can't perform delete operation: %s", result.Error.Error())}
+	}
+
+	if result.RowsAffected == 0 {
+		return &QueryConditionError{Message: fmt.Sprintf("can't find object by this id <%d>", id)}
+	}
+
+	return nil
+}
+
+func listMovieTmdbInfo() ([]MovieTmdbInfo, error) {
+	db, err := get_db()
+
+	var infos []MovieTmdbInfo
+
+	if err != nil {
+		return infos, &InternalError{Message: fmt.Sprintf("can't open database connection: %s", err.Error())}
+	}
+
+	result := db.Find(&infos)
+
+	if result.Error != nil {
+		return infos, &InternalError{Message: fmt.Sprintf("can't perform query operation: %s", err.Error())}
+	}
+
+	return infos, nil
+}
+
+func addMovieTmdbInfo(i *MovieTmdbInfo) error {
+	db, err := get_db()
+
+	if err != nil {
+		return &InternalError{Message: fmt.Sprintf("can't open database connection: %s", err.Error())}
+	}
+
+	result := db.Create(i)
+
+	if result.Error != nil {
+		return &InternalError{Message: fmt.Sprintf("can't perform insert operation: %s", result.Error.Error())}
+	}
+
+	log.Info("Insert MovieTmdbInfo with id: <" + strconv.Itoa(int(i.ID)) + ">")
+
+	return nil
+}
+
+func queryMovieTmdbInfo(id int) (MovieTmdbInfo, error) {
+	db, err := get_db()
+	var info MovieTmdbInfo
+
+	if err != nil {
+		return info, &InternalError{Message: fmt.Sprintf("can't open database connection: %s", err.Error())}
+	}
+
+	result := db.Where("id = ?", id).First(&info)
+
+	if result.Error != nil {
+		return info, &InternalError{Message: fmt.Sprintf("can't perform query operation: %s", result.Error.Error())}
+	}
+
+	if result.RowsAffected == 0 {
+		return info, &QueryConditionError{Message: fmt.Sprintf("can't find object by this id <%d>", id)}
+	}
+
+	return info, nil
+}
+
+func updateMovieTmdbInfo(id int, info *MovieTmdbInfo) error {
+	db, err := get_db()
+
+	if err != nil {
+		return &InternalError{Message: fmt.Sprintf("can't open database connection: %s", err.Error())}
+	}
+
+	var data MovieTmdbInfo
+
+	result := db.Where("id = ?", id).First(&data)
+
+	if result.Error != nil {
+		return &InternalError{Message: fmt.Sprintf("can't perform query operation: %s", result.Error.Error())}
+	}
+
+	if result.RowsAffected == 0 {
+		return &QueryConditionError{Message: fmt.Sprintf("can't find object by this id <%d>", id)}
+	}
+
+	result = db.Model(&data).Select("*").Omit("id").Updates(info)
+
+	if result.Error != nil {
+		return &InternalError{Message: fmt.Sprintf("can't perform update operation: %s", result.Error.Error())}
+	}
+
+	return nil
+}
+
+func deleteMovieTmdbInfo(id int) error {
 	db, err := get_db()
 	if err != nil {
 		return &InternalError{Message: fmt.Sprintf("can't open database connection: %s", err.Error())}
 	}
 
-	result := db.Delete(&Tag{}, id)
-
-	if result.Error != nil {
+	result := db.Delete(&MovieTmdbInfo{}, id)
+  
+  if result.Error != nil {
 		return &InternalError{Message: fmt.Sprintf("can't perform delete operation: %s", result.Error.Error())}
 	}
 
