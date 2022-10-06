@@ -65,6 +65,29 @@ func addMovieImdbInfo(i *MovieImdbInfo) error {
 	return nil
 }
 
+func addMovieImdbInfos(infos []MovieImdbInfo) error {
+	db, err := get_db()
+
+	if err != nil {
+		return &InternalError{Message: fmt.Sprintf("can't open database connection: %s", err.Error())}
+	}
+
+	result := db.Create(infos)
+	if result.Error != nil {
+		return &InternalError{Message: fmt.Sprintf("can't perform insert operation: %s", result.Error.Error())}
+	}
+
+	t := ""
+
+	for _, m := range infos {
+		t = t + strconv.Itoa(int(m.ID)) + ";"
+	}
+
+	log.Info("Insert MovieImdbInfos with ids: <" + t + ">")
+
+	return nil
+}
+
 func queryMovieImdbInfo(id int) (MovieImdbInfo, error) {
 	db, err := get_db()
 	var info MovieImdbInfo
@@ -191,6 +214,49 @@ func AddMovieImdbInfoHandler(g *gin.Context) {
 	notifier.ObjectCreationNotificationChannel <- json
 
 	g.JSON(http.StatusOK, gin.H{"status": "movie_imdb_info is created", "movie_imdb_info": json})
+}
+
+// Add movie_imdb_infos
+// @Summary Add movie_imdb_infos
+// @Description Creates movie_imdb_infos in database
+// @Tags movie_imdb_info
+// @Accept json
+// @Produce json
+// @Param movie_imdb_infos body []db.MovieImdbInfo true "movie_imdb_infos"
+// @Success 200
+// Failure 400
+// @Failure 500
+// @Router /movie_imdb_info/insert_batch [post]
+func AddMovieImdbInfosHandler(g *gin.Context) {
+	var json []MovieImdbInfo
+
+	if err := g.ShouldBindJSON(&json); err != nil {
+		body, _ := g.GetRawData()
+		log.WithFields(log.Fields{"request_body": body}).Error(err)
+		g.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	err := addMovieImdbInfos(json)
+	if err != nil {
+		switch {
+		case errors.As(err, &intErr):
+			log.Error(err)
+			g.JSON(http.StatusInternalServerError, gin.H{"error": err})
+		case errors.As(err, &qCondErr):
+			log.Error(err)
+			g.JSON(http.StatusBadRequest, gin.H{"error": err})
+		default:
+			log.Error(err)
+			g.JSON(http.StatusInternalServerError, gin.H{"error": err})
+		}
+		return
+	}
+	for _, u := range json {
+		notifier.ObjectCreationNotificationChannel <- u
+	}
+
+	g.JSON(http.StatusOK, gin.H{"status": "success", "movie_imdb_infos": json})
 }
 
 // Query movie_imdb_info
