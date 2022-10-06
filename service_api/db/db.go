@@ -567,14 +567,14 @@ func addTag(t *Tag) error {
 	if err != nil {
 		return &InternalError{Message: fmt.Sprintf("can't open database connection: %s", err.Error())}
 	}
-  
-	result := db.Create(i)
-  
+
+	result := db.Create(t)
+
 	if result.Error != nil {
 		return &InternalError{Message: fmt.Sprintf("can't perform insert operation: %s", result.Error.Error())}
 	}
 
-  log.Info("Insert Tag with id: <" + strconv.Itoa(int(t.ID)) + ">")
+	log.Info("Insert Tag with id: <" + strconv.Itoa(int(t.ID)) + ">")
 	return nil
 }
 
@@ -616,7 +616,7 @@ func updateTag(id int, tag *Tag) error {
 		return &QueryConditionError{Message: fmt.Sprintf("can't find object by this id <%d>", id)}
 	}
 	result = db.Model(&data).Select("*").Omit("id").Updates(tag)
-  
+
 	if result.Error != nil {
 		return &InternalError{Message: fmt.Sprintf("can't perform update operation: %s", result.Error.Error())}
 	}
@@ -625,15 +625,11 @@ func updateTag(id int, tag *Tag) error {
 }
 
 func deleteTag(id int) error {
-	result := db.Where("id = ?", id).First(&data)
-
-	if result.Error != nil {
-		return &InternalError{Message: fmt.Sprintf("can't perform query operation: %s", result.Error.Error())}
+	db, err := get_db()
+	if err != nil {
+		return &InternalError{Message: fmt.Sprintf("can't open database connection: %s", err.Error())}
 	}
 
-	if result.RowsAffected == 0 {
-		return &QueryConditionError{Message: fmt.Sprintf("can't find object by this id <%d>", id)}
-	}
 	result := db.Delete(&Tag{}, id)
 
 	if result.Error != nil {
@@ -739,8 +735,8 @@ func deleteMovieTmdbInfo(id int) error {
 	}
 
 	result := db.Delete(&MovieTmdbInfo{}, id)
-  
-  if result.Error != nil {
+
+	if result.Error != nil {
 		return &InternalError{Message: fmt.Sprintf("can't perform delete operation: %s", result.Error.Error())}
 	}
 
