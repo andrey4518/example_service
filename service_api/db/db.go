@@ -2,7 +2,6 @@ package db
 
 import (
 	"fmt"
-	"strconv"
 
 	"example/service/api/config"
 
@@ -39,25 +38,5 @@ func Init() error {
 		&MovieTmdbInfo{},
 	)
 	log.Info("Database initialized")
-	return nil
-}
-
-func InitTestData() error {
-	for i := 0; i < 3; i++ {
-		err := addUser(&User{Name: "user" + strconv.Itoa(i)})
-		if err != nil {
-			return fmt.Errorf("inserting user error: %w", err)
-		}
-	}
-
-	for i := 0; i < 3; i++ {
-		err := addMovie(&Movie{Name: "movie" + strconv.Itoa(i)})
-		if err != nil {
-			return fmt.Errorf("inserting user error: %w", err)
-		}
-	}
-
-	log.Info("Test data inserted")
-
 	return nil
 }

@@ -26,28 +26,8 @@ func InitHandler(g *gin.Context) {
 	g.JSON(http.StatusOK, gin.H{"status": "success"})
 }
 
-// Initialize database
-// @Summary Initialize test data
-// @Description Initialize test data
-// @Tags db
-// @Accept json
-// @Produce json
-// @Success 200
-// @Failure 500
-// @Router /db/init_db_data [post]
-func InitTestDataHandler(g *gin.Context) {
-	err := InitTestData()
-	if err != nil {
-		log.Error(err)
-		g.JSON(http.StatusInternalServerError, gin.H{"error": err})
-		return
-	}
-	g.JSON(http.StatusOK, gin.H{"status": "success"})
-}
-
 func AddApiRoutes(g *gin.RouterGroup) {
 	g.POST("/db/init_db", InitHandler)
-	g.POST("/db/init_db_data", InitTestDataHandler)
 	//users
 	g.GET("/users", ListUsersHandler)
 	g.GET("/users/:id", QueryUserHandler)
