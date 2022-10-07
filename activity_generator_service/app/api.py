@@ -53,7 +53,7 @@ async def start_user_generating_activity(interval: int=5, endpoint: str=f'{os.ge
         "job_id":job.id
     }
 
-@router.get('/generate_usesrs_batch')
+@router.get('/generate_users_batch')
 async def generate_usesrs_batch(
     endpoint: str=f'{os.getenv("API_URL", "http://api:8080/api/v1")}/users/insert_batch',
     count: int=100
@@ -76,28 +76,61 @@ async def gen_movie():
     }
 
 
-async def movie_generating_job(endpoint):
-    movie = await gen_movie()
-    movie_id = movie.pop('id')
+@router.get('/get_movies_ready_to_export')
+async def get_movies_ready_to_export(count: int = 5):
+    movies = await q.get_random_movies_ready_to_export(count)
+    return [
+        {
+            'id': m.id,
+            'name': m.title,
+            'imdb_id': (await q.get_links_by_movie_id(m.id)).imdb_id,
+            'tmdb_id': (await q.get_links_by_movie_id(m.id)).tmdb_id,
+            'genres': [g.name for g in await q.get_genres_by_movie_id(m.id)]
+        }
+        for m in movies
+    ]
+
+
+async def generate_and_create_movies(endpoint, count=1):
+    internal_movies = await get_movies_ready_to_export(count)
+    internal_movie_ids = [m.pop('id') for m in internal_movies]
     async with aiohttp.ClientSession() as session:
-        async with session.post(endpoint, data=json.dumps(movie)) as r:
+        async with session.post(endpoint, data=json.dumps(internal_movies)) as r:
             logger.info((
-                f'Request to "{r.url}" with payload "{movie}" finished '
+                f'Request to "{r.url}" with payload "{internal_movies}" finished '
                 f'with code {r.status} and response "{await r.text()}"'
             ))
-            json_data = await r.json()
-            id = json_data.get('movie', {}).get('id')
-            if id:
-                await q.set_movie_exported(
-                    movie_id,
-                    id
-                )
+            for internal_movie, id in zip(internal_movies, internal_movie_ids):
+                internal_movie['id'] = id
+
+            for external_movie in (await r.json()).get('movies', []):
+                external_id = external_movie.get('id')
+                if external_id:
+                    internal_id = None
+                    for internal_movie in internal_movies:
+                        if internal_movie.get('name') == external_movie.get('name'):
+                            internal_id = internal_movie.get('id')
+                            break
+                    if internal_id:
+                        await q.set_movie_exported(
+                            internal_id,
+                            external_id
+                        )
+
+
+@router.get('/generate_movies_batch')
+async def generate_usesrs_batch(
+    endpoint: str=f'{os.getenv("API_URL", "http://api:8080/api/v1")}/movies/insert_batch',
+    count: int=100
+    ):
+    await generate_and_create_movies(endpoint, count)
+    return {'status': 'done'}
 
 
 @router.get('/start_movie_generating_activity',response_model=JobCreateDeleteResponse,tags=["generating"])
 async def start_user_generating_activity(interval: int=5, endpoint: str=f'{os.getenv("API_URL", "http://api:8080/api/v1")}/movies'):
     scheduler = await get_scheduler()
-    job = scheduler.add_job(movie_generating_job, 'interval', seconds=interval, args=[endpoint])
+    job = scheduler.add_job(generate_and_create_movies, 'interval', seconds=interval, args=[endpoint])
     return {
         "scheduled":True,
         "job_id":job.id

@@ -18,7 +18,7 @@ async def create_local_db_engine():
 
 
 async def get_random_user_id():
-    engine = create_local_db_engine()
+    engine = await create_local_db_engine()
     async_session = sessionmaker(
         engine, expire_on_commit=False, class_=AsyncSession
     )
@@ -75,6 +75,32 @@ async def get_random_movie() -> local_db_dto.Movie:
         movie = result.fetchone()[0]
 
     return movie
+
+
+async def get_random_movies_ready_to_export(count=1):
+    engine = await create_local_db_engine()
+    async_session = sessionmaker(
+        engine, expire_on_commit=False, class_=AsyncSession
+    )
+
+    async with async_session() as session:
+        stmt = select(local_db_dto.Movie)\
+            .join(local_db_dto.Movie.rating)\
+            .join(local_db_dto.Rating.user)\
+            .where(sa.and_(
+                local_db_dto.Movie.exported == False,
+                local_db_dto.User.exported
+            )).order_by(func.random()).limit(count)
+        result = await session.execute(stmt)
+        movies = result.fetchall()
+        if movies is None:
+            return []
+        else:
+            movies = [m[0] for m in movies]
+            movies = {m.id: m for m in movies}
+            movies = list(movies.values())
+            movies = movies[:count]
+        return movies
 
 
 async def get_links_by_movie_id(movie_id) -> local_db_dto.MovieLinks:
