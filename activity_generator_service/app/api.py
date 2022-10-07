@@ -27,30 +27,39 @@ async def gen_user():
     return profile
 
 
-async def user_generating_job(endpoint):
-    user = await gen_user()
+async def generate_and_create_users(endpoint, count=1):
+    users = [await gen_user() for _ in range(count)]
     async with aiohttp.ClientSession() as session:
-        async with session.post(endpoint, data=json.dumps(user)) as r:
+        async with session.post(endpoint, data=json.dumps(users)) as r:
             logger.info((
-                f'Request to "{r.url}" with payload "{user}" finished '
+                f'Request to "{r.url}" with payload "{users}" finished '
                 f'with code {r.status} and response "{await r.text()}"'
             ))
-            id = (await r.json()).get('id')
-            if id:
-                await q.set_user_service_id(
-                    await q.get_random_user_id(),
-                    id
-                )
+            for u in (await r.json()).get('users', []):
+                id = u.get('id')
+                if id:
+                    await q.set_user_service_id(
+                        await q.get_random_user_id(),
+                        id
+                    )
 
 
 @router.get('/start_user_generating_activity',response_model=JobCreateDeleteResponse,tags=["generating"])
-async def start_user_generating_activity(interval: int=5, endpoint: str=f'{os.getenv("API_URL", "http://api:8080/api/v1")}/users'):
+async def start_user_generating_activity(interval: int=5, endpoint: str=f'{os.getenv("API_URL", "http://api:8080/api/v1")}/users/insert_batch'):
     scheduler = await get_scheduler()
-    job = scheduler.add_job(user_generating_job,'interval', seconds=interval, args=[endpoint])
+    job = scheduler.add_job(generate_and_create_users,'interval', seconds=interval, args=[endpoint])
     return {
         "scheduled":True,
         "job_id":job.id
     }
+
+@router.get('/generate_usesrs_batch')
+async def generate_usesrs_batch(
+    endpoint: str=f'{os.getenv("API_URL", "http://api:8080/api/v1")}/users/insert_batch',
+    count: int=100
+    ):
+    await generate_and_create_users(endpoint, count)
+    return {'status': 'done'}
 
 
 @router.get('/generate_movie')
