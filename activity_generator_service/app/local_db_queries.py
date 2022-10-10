@@ -194,7 +194,7 @@ async def get_all_ratings_ready_to_export():
     )
 
     async with async_session() as session:
-        stmt = select(local_db_dto.Rating)\
+        stmt = select(local_db_dto.Rating, local_db_dto.Movie, local_db_dto.User)\
             .join(local_db_dto.Rating.movie)\
             .join(local_db_dto.Rating.user)\
             .where(sa.and_(
@@ -203,7 +203,10 @@ async def get_all_ratings_ready_to_export():
                 local_db_dto.User.exported
             ))
         result = await session.execute(stmt)
-        return [row.Rating for row in result]
+        return [
+            {'rating': row[0], 'movie': row[1], 'user': row[2]}
+            for row in result
+        ]
 
 
 async def get_exported_ratings():
