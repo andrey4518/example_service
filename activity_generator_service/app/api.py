@@ -194,7 +194,7 @@ async def generate_ratings_batch(
 
 
 @router.get('/start_rating_generating_activity',response_model=JobCreateDeleteResponse,tags=["generating"])
-async def start_user_generating_activity(interval: int=5, endpoint: str=f'{os.getenv("API_URL", "http://api:8080/api/v1")}/ratings'):
+async def start_rating_generating_activity(interval: int=5, endpoint: str=f'{os.getenv("API_URL", "http://api:8080/api/v1")}/ratings'):
     scheduler = await get_scheduler()
     job = scheduler.add_job(generate_and_create_ratings, 'interval', seconds=interval, args=[endpoint])
     return {
@@ -203,33 +203,56 @@ async def start_user_generating_activity(interval: int=5, endpoint: str=f'{os.ge
     }
 
 
-@router.get('/generate_tag_ready_to_export')
-async def generate_tag_ready_to_export():
-    return await q.get_tag_ready_to_export()
+@router.get('/get_tags_ready_to_export')
+async def get_tags_ready_to_export(count:int = 0):
+    if count:
+        return (await q.get_all_tags_ready_to_export())[:count]
+    return await q.get_all_tags_ready_to_export()
 
 
-async def tag_generating_job(endpoint):
-    tag = await generate_tag_ready_to_export()
-    if not tag:
-        return
-    tag_id = tag.pop('id')
-    tag.pop('exported')
+async def generate_and_create_tags(endpoint, count=1):
+    internal_data = await get_tags_ready_to_export(count)
+    insert_tags = [
+        {
+            'user_id': x['user'].service_id,
+            'movie_id': x['movie'].service_id,
+            'tag_text': x['tag'].tag_text,
+        }
+        for x in internal_data
+    ]
     async with aiohttp.ClientSession() as session:
-        async with session.post(endpoint, data=json.dumps(tag)) as r:
+        async with session.post(endpoint, data=json.dumps(insert_tags)) as r:
             logger.info((
-                f'Request to "{r.url}" with payload "{tag}" finished '
+                f'Request to "{r.url}" with payload "{insert_tags}" finished '
                 f'with code {r.status} and response "{await r.text()}"'
             ))
-            json_data = await r.json()
-            id = json_data.get('tag', {}).get('id')
-            if id:
-                await q.set_tag_exported(tag_id)
+
+            for external_tag in (await r.json()).get('tags', []):
+                internal_id = None
+                for internal_item in internal_data:
+                    if all([
+                        external_tag['user_id'] == internal_item['user'].service_id,
+                        external_tag['movie_id'] == internal_item['movie'].service_id,
+                    ]):
+                        internal_id = internal_item['tag'].id
+                        break
+                if internal_id:
+                    q.set_tag_exported(internal_id)
+
+
+@router.get('/generate_tags_batch')
+async def generate_tags_batch(
+    endpoint: str=f'{os.getenv("API_URL", "http://api:8080/api/v1")}/tags/insert_batch',
+    count: int=100
+    ):
+    await generate_and_create_tags(endpoint, count)
+    return {'status': 'done'}
 
 
 @router.get('/start_tag_generating_activity',response_model=JobCreateDeleteResponse,tags=["generating"])
-async def start_user_generating_activity(interval: int=5, endpoint: str=f'{os.getenv("API_URL", "http://api:8080/api/v1")}/tags'):
+async def start_user_generating_activity(interval: int=5, endpoint: str=f'{os.getenv("API_URL", "http://api:8080/api/v1")}/tags/insert_batch'):
     scheduler = await get_scheduler()
-    job = scheduler.add_job(tag_generating_job, 'interval', seconds=interval, args=[endpoint])
+    job = scheduler.add_job(generate_and_create_tags, 'interval', seconds=interval, args=[endpoint])
     return {
         "scheduled":True,
         "job_id":job.id

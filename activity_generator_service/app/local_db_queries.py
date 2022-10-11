@@ -259,6 +259,28 @@ async def get_tag_ready_to_export():
         return tag
 
 
+async def get_all_tags_ready_to_export():
+    engine = await create_local_db_engine()
+    async_session = sessionmaker(
+        engine, expire_on_commit=False, class_=AsyncSession
+    )
+
+    async with async_session() as session:
+        stmt = select(local_db_dto.Tag, local_db_dto.Movie, local_db_dto.User)\
+            .join(local_db_dto.Tag.movie)\
+            .join(local_db_dto.Tag.user)\
+            .where(sa.and_(
+                local_db_dto.Tag.exported == False,
+                local_db_dto.Movie.exported,
+                local_db_dto.User.exported
+            ))
+        result = await session.execute(stmt)
+        return [
+            {'tag': row[0], 'movie': row[1], 'user': row[2]}
+            for row in result
+        ]
+
+
 async def get_exported_tags():
     engine = await create_local_db_engine()
     async_session = sessionmaker(
