@@ -55,6 +55,29 @@ func addTag(t *Tag) error {
 	return nil
 }
 
+func addTags(tags []Tag) error {
+	db, err := get_db()
+
+	if err != nil {
+		return &InternalError{Message: fmt.Sprintf("can't open database connection: %s", err.Error())}
+	}
+
+	result := db.Create(tags)
+	if result.Error != nil {
+		return &InternalError{Message: fmt.Sprintf("can't perform insert operation: %s", result.Error.Error())}
+	}
+
+	t := ""
+
+	for _, m := range tags {
+		t = t + strconv.Itoa(int(m.ID)) + ";"
+	}
+
+	log.Info("Insert Tags with ids: <" + t + ">")
+
+	return nil
+}
+
 func queryTag(id int) (Tag, error) {
 	db, err := get_db()
 	var tag Tag
@@ -176,6 +199,49 @@ func AddTagHandler(g *gin.Context) {
 
 	notifier.ObjectCreationNotificationChannel <- json
 	g.JSON(http.StatusOK, gin.H{"status": "tag is created", "tag": json})
+}
+
+// Add tags
+// @Summary Add tags
+// @Description Creates tags in database
+// @Tags tags
+// @Accept json
+// @Produce json
+// @Param tags body []db.Tag true "tags info"
+// @Success 200
+// Failure 400
+// @Failure 500
+// @Router /tags/insert_batch [post]
+func AddTagsHandler(g *gin.Context) {
+	var json []Tag
+
+	if err := g.ShouldBindJSON(&json); err != nil {
+		body, _ := g.GetRawData()
+		log.WithFields(log.Fields{"request_body": body}).Error(err)
+		g.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	err := addTags(json)
+	if err != nil {
+		switch {
+		case errors.As(err, &intErr):
+			log.Error(err)
+			g.JSON(http.StatusInternalServerError, gin.H{"error": err})
+		case errors.As(err, &qCondErr):
+			log.Error(err)
+			g.JSON(http.StatusBadRequest, gin.H{"error": err})
+		default:
+			log.Error(err)
+			g.JSON(http.StatusInternalServerError, gin.H{"error": err})
+		}
+		return
+	}
+	for _, u := range json {
+		notifier.ObjectCreationNotificationChannel <- u
+	}
+
+	g.JSON(http.StatusOK, gin.H{"status": "success", "tags": json})
 }
 
 // Query tag

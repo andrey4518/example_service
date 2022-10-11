@@ -54,6 +54,29 @@ func addUser(u *User) error {
 	return nil
 }
 
+func addUsers(users []User) error {
+	db, err := get_db()
+
+	if err != nil {
+		return &InternalError{Message: fmt.Sprintf("can't open database connection: %s", err.Error())}
+	}
+
+	result := db.Create(users)
+	if result.Error != nil {
+		return &InternalError{Message: fmt.Sprintf("can't perform insert operation: %s", result.Error.Error())}
+	}
+
+	t := ""
+
+	for _, u := range users {
+		t = t + strconv.Itoa(int(u.ID)) + ";"
+	}
+
+	log.Info("Insert Users with ids: <" + t + ">")
+
+	return nil
+}
+
 func queryUser(id int) (User, error) {
 	db, err := get_db()
 
@@ -180,6 +203,49 @@ func AddUserHandler(g *gin.Context) {
 	notifier.ObjectCreationNotificationChannel <- json
 
 	g.JSON(http.StatusOK, gin.H{"status": "success", "user": json})
+}
+
+// Add users
+// @Summary Add users
+// @Description Creates users in database
+// @Tags users
+// @Accept json
+// @Produce json
+// @Param users body []db.User true "users info"
+// @Success 200
+// Failure 400
+// @Failure 500
+// @Router /users/insert_batch [post]
+func AddUsersHandler(g *gin.Context) {
+	var json []User
+
+	if err := g.ShouldBindJSON(&json); err != nil {
+		body, _ := g.GetRawData()
+		log.WithFields(log.Fields{"request_body": body}).Error(err)
+		g.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	err := addUsers(json)
+	if err != nil {
+		switch {
+		case errors.As(err, &intErr):
+			log.Error(err)
+			g.JSON(http.StatusInternalServerError, gin.H{"error": err})
+		case errors.As(err, &qCondErr):
+			log.Error(err)
+			g.JSON(http.StatusBadRequest, gin.H{"error": err})
+		default:
+			log.Error(err)
+			g.JSON(http.StatusInternalServerError, gin.H{"error": err})
+		}
+		return
+	}
+	for _, u := range json {
+		notifier.ObjectCreationNotificationChannel <- u
+	}
+
+	g.JSON(http.StatusOK, gin.H{"status": "success", "users": json})
 }
 
 // Query user

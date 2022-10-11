@@ -56,6 +56,29 @@ func addRating(r *Rating) error {
 	return nil
 }
 
+func addRatings(ratings []Rating) error {
+	db, err := get_db()
+
+	if err != nil {
+		return &InternalError{Message: fmt.Sprintf("can't open database connection: %s", err.Error())}
+	}
+
+	result := db.Create(ratings)
+	if result.Error != nil {
+		return &InternalError{Message: fmt.Sprintf("can't perform insert operation: %s", result.Error.Error())}
+	}
+
+	t := ""
+
+	for _, m := range ratings {
+		t = t + strconv.Itoa(int(m.ID)) + ";"
+	}
+
+	log.Info("Insert Ratings with ids: <" + t + ">")
+
+	return nil
+}
+
 func queryRating(id int) (Rating, error) {
 	db, err := get_db()
 	var rating Rating
@@ -182,6 +205,49 @@ func AddRatingHandler(g *gin.Context) {
 	notifier.ObjectCreationNotificationChannel <- json
 
 	g.JSON(http.StatusOK, gin.H{"status": "rating is created", "rating": json})
+}
+
+// Add ratings
+// @Summary Add ratings
+// @Description Creates ratings in database
+// @Tags ratings
+// @Accept json
+// @Produce json
+// @Param ratings body []db.Rating true "ratings info"
+// @Success 200
+// Failure 400
+// @Failure 500
+// @Router /ratings/insert_batch [post]
+func AddRatingsHandler(g *gin.Context) {
+	var json []Rating
+
+	if err := g.ShouldBindJSON(&json); err != nil {
+		body, _ := g.GetRawData()
+		log.WithFields(log.Fields{"request_body": body}).Error(err)
+		g.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	err := addRatings(json)
+	if err != nil {
+		switch {
+		case errors.As(err, &intErr):
+			log.Error(err)
+			g.JSON(http.StatusInternalServerError, gin.H{"error": err})
+		case errors.As(err, &qCondErr):
+			log.Error(err)
+			g.JSON(http.StatusBadRequest, gin.H{"error": err})
+		default:
+			log.Error(err)
+			g.JSON(http.StatusInternalServerError, gin.H{"error": err})
+		}
+		return
+	}
+	for _, u := range json {
+		notifier.ObjectCreationNotificationChannel <- u
+	}
+
+	g.JSON(http.StatusOK, gin.H{"status": "success", "ratings": json})
 }
 
 // Query rating

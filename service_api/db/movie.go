@@ -56,6 +56,29 @@ func addMovie(m *Movie) error {
 	return nil
 }
 
+func addMovies(movies []Movie) error {
+	db, err := get_db()
+
+	if err != nil {
+		return &InternalError{Message: fmt.Sprintf("can't open database connection: %s", err.Error())}
+	}
+
+	result := db.Create(movies)
+	if result.Error != nil {
+		return &InternalError{Message: fmt.Sprintf("can't perform insert operation: %s", result.Error.Error())}
+	}
+
+	t := ""
+
+	for _, m := range movies {
+		t = t + strconv.Itoa(int(m.ID)) + ";"
+	}
+
+	log.Info("Insert Movies with ids: <" + t + ">")
+
+	return nil
+}
+
 func queryMovie(id int) (Movie, error) {
 	db, err := get_db()
 	var movie Movie
@@ -184,6 +207,49 @@ func AddMovieHandler(g *gin.Context) {
 	g.JSON(http.StatusOK, gin.H{"status": "movie is created", "movie": json})
 }
 
+// Add movies
+// @Summary Add movies
+// @Description Creates movies in database
+// @Tags movies
+// @Accept json
+// @Produce json
+// @Param movies body []db.Movie true "movies info"
+// @Success 200
+// Failure 400
+// @Failure 500
+// @Router /movies/insert_batch [post]
+func AddMoviesHandler(g *gin.Context) {
+	var json []Movie
+
+	if err := g.ShouldBindJSON(&json); err != nil {
+		body, _ := g.GetRawData()
+		log.WithFields(log.Fields{"request_body": body}).Error(err)
+		g.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	err := addMovies(json)
+	if err != nil {
+		switch {
+		case errors.As(err, &intErr):
+			log.Error(err)
+			g.JSON(http.StatusInternalServerError, gin.H{"error": err})
+		case errors.As(err, &qCondErr):
+			log.Error(err)
+			g.JSON(http.StatusBadRequest, gin.H{"error": err})
+		default:
+			log.Error(err)
+			g.JSON(http.StatusInternalServerError, gin.H{"error": err})
+		}
+		return
+	}
+	for _, u := range json {
+		notifier.ObjectCreationNotificationChannel <- u
+	}
+
+	g.JSON(http.StatusOK, gin.H{"status": "success", "movies": json})
+}
+
 // Query movie
 // @Summary Query movie
 // @Description Shows movie by id
@@ -229,7 +295,7 @@ func QueryMovieHandler(g *gin.Context) {
 // @Tags movies
 // @Accept json
 // @Produce json
-// @Param user body db.Movie true "movie info"
+// @Param movie body db.Movie true "movie info"
 // @Param id path integer true "movie id"
 // @Success 200
 // @Failure 400
