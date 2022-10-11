@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 import uvicorn
 from scheduler import router as SchedulerRouter, get_scheduler
-from api import router as ApiRouter
+from api.router import router as ApiRouter
 from log import logger
 
 

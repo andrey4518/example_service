@@ -1,0 +1,1 @@
+from . import common, movie, rating, router, tag, user
