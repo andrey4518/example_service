@@ -1,6 +1,6 @@
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
-from local_db_dto import Base, Genre, Movie, MovieGenre, Rating, Tag, User, MovieLinks
+from local_db.dto import Base, Genre, Movie, MovieGenre, Rating, Tag, User, MovieLinks
 import pandas as pd
 from itertools import chain
 from csv import DictReader
